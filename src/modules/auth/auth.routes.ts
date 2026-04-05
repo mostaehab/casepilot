@@ -1,13 +1,13 @@
 import { Router } from "express";
-import { authController } from "./auth.controller";
-import { userProtected } from "../../middlewares/roles.middleware";
-import { validate } from "../../middlewares/validate";
+import { authController } from "./auth.controller.js";
+import { userProtected } from "../../middlewares/roles.middleware.js";
+import { validate } from "../../middlewares/validate.js";
 import {
   loginModel,
   registerModel,
   changePasswordModel,
   resetPasswordModel,
-} from "./auth.validation";
+} from "./auth.validation.js";
 
 const router = Router();
 

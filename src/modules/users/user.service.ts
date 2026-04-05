@@ -1,5 +1,5 @@
-import { userRepository } from "./user.repository";
-import { updateUserInput } from "./user.validation";
+import { userRepository } from "./user.repository.js";
+import { updateUserInput } from "./user.validation.js";
 
 export const userService = {
   findUserById: async (id: string) => {

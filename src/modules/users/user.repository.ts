@@ -1,5 +1,5 @@
-import { pool } from "../../config/db";
-import { updateUserInput } from "./user.validation";
+import { pool } from "../../config/db.js";
+import { updateUserInput } from "./user.validation.js";
 
 export const userRepository = {
   findAllUsers: async () => {

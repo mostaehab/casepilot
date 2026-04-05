@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { authService } from "./auth.service";
+import { authService } from "./auth.service.js";
 import { fromNodeHeaders } from "better-auth/node";
 
 export const authController = {

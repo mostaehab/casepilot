@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import dotenv from "dotenv";
 import { Pool } from "pg";
-import { ROLES } from "./roles";
+import { ROLES } from "./roles.js";
 
 dotenv.config();
 

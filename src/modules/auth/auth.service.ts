@@ -1,11 +1,11 @@
-import { userRepository } from "../users/user.repository";
+import { userRepository } from "../users/user.repository.js";
 import {
   loginInput,
   registerInput,
   changePasswordInput,
   resetPasswordInput,
-} from "./auth.validation";
-import { auth } from "../../lib/auth";
+} from "./auth.validation.js";
+import { auth } from "../../lib/auth.js";
 
 export const authService = {
   login: async (input: loginInput) => {
