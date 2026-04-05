@@ -1,0 +1,13 @@
+import express from "express";
+import userRoutes from "./modules/users/user.routes";
+import authRoutes from "./modules/auth/auth.routes";
+import morgan from "morgan";
+import dotenv from "dotenv";
+dotenv.config();
+const app = express();
+app.use(express.json());
+app.use(morgan("dev"));
+
+app.use("/api/users", userRoutes);
+app.use("/api/auth", authRoutes);
+export default app;

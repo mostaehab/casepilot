@@ -1,0 +1,52 @@
+{
+  "name": "casepilot-api",
+  "version": "1.0.0",
+  "description": "an api for a website that manages cases for lawyers",
+  "homepage": "https://github.com/mostaehab/casepilot#readme",
+  "bugs": {
+    "url": "https://github.com/mostaehab/casepilot/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mostaehab/casepilot.git"
+  },
+  "license": "ISC",
+  "author": "Mostafa Ehab",
+  "type": "module",
+  "main": "server.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "tsx watch src/server.ts",
+    "migrate:create": "node-pg-migrate create",
+    "migrate:up": "node-pg-migrate up",
+    "migrate:down": "node-pg-migrate down"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "better-auth": "^1.5.5",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.1",
+    "node-cron": "^4.2.1",
+    "resend": "^6.9.3",
+    "uuid": "^13.0.0",
+    "winston": "^3.19.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^25.3.2",
+    "@types/pg": "^8.18.0",
+    "node-pg-migrate": "^8.0.4",
+    "pg": "^8.19.0",
+    "ts-node-dev": "^2.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
