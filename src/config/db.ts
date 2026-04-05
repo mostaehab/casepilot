@@ -3,8 +3,13 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+const connectionString = process.env.DATABASE_URL?.replace(
+  "channel_binding=require",
+  "channel_binding=prefer",
+);
+
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString,
   ssl: { rejectUnauthorized: false },
 });
 

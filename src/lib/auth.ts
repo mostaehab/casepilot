@@ -9,7 +9,11 @@ export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET!,
   baseURL: process.env.BETTER_AUTH_URL,
   database: new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: process.env.DATABASE_URL?.replace(
+      "channel_binding=require",
+      "channel_binding=prefer",
+    ),
+    ssl: { rejectUnauthorized: false },
   }),
   emailAndPassword: {
     enabled: true,
