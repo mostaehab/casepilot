@@ -22,6 +22,7 @@
     "migrate:down": "node-pg-migrate down"
   },
   "dependencies": {
+    "@vercel/blob": "^2.3.3",
     "bcrypt": "^6.0.0",
     "better-auth": "^1.5.5",
     "cors": "^2.8.6",
@@ -30,6 +31,7 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.1",
+    "multer": "^2.1.1",
     "node-cron": "^4.2.1",
     "resend": "^6.9.3",
     "uuid": "^13.0.0",
@@ -41,6 +43,7 @@
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "^1.9.10",
+    "@types/multer": "^2.1.0",
     "@types/node": "^25.3.2",
     "@types/pg": "^8.18.0",
     "node-pg-migrate": "^8.0.4",
