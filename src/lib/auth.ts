@@ -17,7 +17,15 @@ export const auth = betterAuth({
   }),
   advanced: {
     useSecureCookies: process.env.NODE_ENV === "production",
+    defaultCookieAttributes: {
+      sameSite: "none",
+      secure: true,
+    },
   },
+  trustedOrigins: (process.env.CORS_ORIGINS ?? "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean),
   emailAndPassword: {
     enabled: true,
   },
