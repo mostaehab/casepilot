@@ -15,6 +15,9 @@ export const auth = betterAuth({
     ),
     ssl: { rejectUnauthorized: false },
   }),
+  advanced: {
+    useSecureCookies: process.env.NODE_ENV === "production",
+  },
   emailAndPassword: {
     enabled: true,
   },
