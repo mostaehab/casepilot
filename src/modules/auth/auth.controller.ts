@@ -59,6 +59,12 @@ export const authController = {
         fromNodeHeaders(req.headers),
       );
 
+      if (!user) {
+        return res
+          .status(404)
+          .json({ status: "error", message: "User not found" });
+      }
+
       res.status(200).json({
         status: "success",
         message: "User retrieved successfully",

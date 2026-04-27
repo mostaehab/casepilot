@@ -21,6 +21,11 @@ export const teamController = {
   getTeamById: async (req: Request, res: Response) => {
     try {
       const team = await teamService.getTeamById(req.params.id as string);
+      if (!team) {
+        return res
+          .status(404)
+          .json({ status: "error", message: "Team not found" });
+      }
       res.status(200).json({
         status: "success",
         data: team,
@@ -36,6 +41,11 @@ export const teamController = {
   getMyTeam: async (req: Request, res: Response) => {
     try {
       const team = await teamService.getMyTeam(req.user.id);
+      if (!team) {
+        return res
+          .status(404)
+          .json({ status: "error", message: "No team found for the user" });
+      }
       res.status(200).json({
         status: "success",
         data: team,
@@ -51,6 +61,11 @@ export const teamController = {
   getMyMemberships: async (req: Request, res: Response) => {
     try {
       const teams = await teamService.getTeamsForUser(req.user.id);
+      if (!teams || teams.length === 0) {
+        return res
+          .status(404)
+          .json({ status: "error", message: "No memberships found" });
+      }
       res.status(200).json({
         status: "success",
         data: teams,

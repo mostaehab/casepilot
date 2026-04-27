@@ -24,6 +24,11 @@ export const caseController = {
         req.params.id as string,
         req.user.id,
       );
+      if (!data) {
+        return res
+          .status(404)
+          .json({ status: "error", message: "Case not found" });
+      }
       res.status(200).json({ status: "success", data });
     } catch (error: any) {
       res.status(404).json({
@@ -36,6 +41,11 @@ export const caseController = {
   getMyCases: async (req: Request, res: Response) => {
     try {
       const data = await caseService.getMyCases(req.user.id);
+      if (!data || data.length === 0) {
+        return res
+          .status(404)
+          .json({ status: "error", message: "No cases found for the user" });
+      }
       res.status(200).json({ status: "success", data });
     } catch (error: any) {
       res.status(400).json({
@@ -51,6 +61,11 @@ export const caseController = {
         req.params.teamId as string,
         req.user.id,
       );
+      if (!data || data.length === 0) {
+        return res
+          .status(404)
+          .json({ status: "error", message: "No cases found for this team" });
+      }
       res.status(200).json({ status: "success", data });
     } catch (error: any) {
       res.status(400).json({
@@ -63,6 +78,11 @@ export const caseController = {
   getAssignedCases: async (req: Request, res: Response) => {
     try {
       const data = await caseService.getAssignedCases(req.user.id);
+      if (!data || data.length === 0) {
+        return res
+          .status(404)
+          .json({ status: "error", message: "No assigned cases found" });
+      }
       res.status(200).json({ status: "success", data });
     } catch (error: any) {
       res.status(400).json({

@@ -36,6 +36,11 @@ export const caseFileController = {
         req.params.caseId as string,
         req.user.id,
       );
+      if (!data || data.length === 0) {
+        return res
+          .status(404)
+          .json({ status: "error", message: "No files found for this case" });
+      }
       res.status(200).json({ status: "success", data });
     } catch (error: any) {
       res.status(400).json({
