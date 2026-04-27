@@ -2,15 +2,27 @@ import { Request, Response } from "express";
 import { authService } from "./auth.service.js";
 import { fromNodeHeaders } from "better-auth/node";
 
+const forwardAuthCookies = (headers: Headers, res: Response) => {
+  const setCookies =
+    typeof headers.getSetCookie === "function"
+      ? headers.getSetCookie()
+      : headers.get("set-cookie");
+  if (setCookies && (Array.isArray(setCookies) ? setCookies.length : true)) {
+    res.setHeader("Set-Cookie", setCookies as string | string[]);
+  }
+};
+
 export const authController = {
   login: async (req: Request, res: Response) => {
     try {
-      const loginDetails = await authService.login(req.body);
+      const { headers, token, user } = await authService.login(req.body);
+
+      forwardAuthCookies(headers, res);
 
       res.status(200).json({
         status: "success",
         message: "Login successful",
-        data: loginDetails,
+        data: { token, user },
       });
     } catch (error: any) {
       res.status(400).json({
@@ -22,7 +34,9 @@ export const authController = {
 
   register: async (req: Request, res: Response) => {
     try {
-      const user = await authService.register(req.body);
+      const { headers, user } = await authService.register(req.body);
+
+      forwardAuthCookies(headers, res);
 
       res.status(201).json({
         status: "success",
@@ -39,7 +53,11 @@ export const authController = {
 
   logout: async (req: Request, res: Response) => {
     try {
-      await authService.logout(fromNodeHeaders(req.headers));
+      const { headers } = await authService.logout(
+        fromNodeHeaders(req.headers),
+      );
+
+      forwardAuthCookies(headers, res);
 
       res.status(200).json({
         status: "success",

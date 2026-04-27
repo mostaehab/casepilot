@@ -12,12 +12,16 @@ export const authService = {
     const { email, password } = input;
 
     try {
-      const result = await auth.api.signInEmail({ body: { email, password } });
+      const { headers, response } = await auth.api.signInEmail({
+        body: { email, password },
+        returnHeaders: true,
+      });
 
-      const user = await userRepository.findUserById(result.user.id);
+      const user = await userRepository.findUserById(response.user.id);
 
       return {
-        token: result.token,
+        headers,
+        token: response.token,
         user,
       };
     } catch (error: any) {
@@ -35,7 +39,7 @@ export const authService = {
     }
 
     try {
-      const result = await auth.api.signUpEmail({
+      const { headers, response } = await auth.api.signUpEmail({
         body: {
           name,
           email,
@@ -43,9 +47,10 @@ export const authService = {
           nationalNumber,
           barLicenseNumber,
         },
+        returnHeaders: true,
       });
 
-      return result.user;
+      return { headers, user: response.user };
     } catch (error: any) {
       throw new Error(error.message ?? "Failed to register user");
     }
@@ -53,7 +58,11 @@ export const authService = {
 
   logout: async (headers: Headers) => {
     try {
-      await auth.api.signOut({ headers });
+      const { headers: responseHeaders } = await auth.api.signOut({
+        headers,
+        returnHeaders: true,
+      });
+      return { headers: responseHeaders };
     } catch (error: any) {
       throw new Error(error.message ?? "Logout failed");
     }
