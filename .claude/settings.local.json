@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(claude mcp:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Skill(update-config)"
     ]
   }
 }
