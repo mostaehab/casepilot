@@ -150,10 +150,13 @@ export const teamRepository = {
 
   findTeamsByUserId: async (userId: string) => {
     const query = `
-      SELECT t.*, tm.role AS member_role, tm.status
+      SELECT t.*,
+             COALESCE(tm.role, 'owner') AS member_role,
+             COALESCE(tm.status, 'active') AS status
       FROM "team" t
-      JOIN "team_member" tm ON t.id = tm.team_id
-      WHERE tm.user_id = $1 AND tm.status != 'removed'
+      LEFT JOIN "team_member" tm ON t.id = tm.team_id AND tm.user_id = $1
+      WHERE t.owner_id = $1
+         OR (tm.user_id = $1 AND tm.status != 'removed')
     `;
     const values = [userId];
     const { rows } = await pool.query(query, values);
