@@ -67,4 +67,21 @@ export const caseFileController = {
       });
     }
   },
+
+  // ---- Admin overrides ----
+
+  adminDeleteFile: async (req: Request, res: Response) => {
+    try {
+      await caseFileService.adminDeleteFile(req.params.fileId as string);
+      res.status(200).json({
+        status: "success",
+        message: "File deleted by admin",
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        status: "error",
+        message: error.message || "An unknown error occurred",
+      });
+    }
+  },
 };

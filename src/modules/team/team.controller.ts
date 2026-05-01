@@ -2,6 +2,18 @@ import { Request, Response } from "express";
 import { teamService } from "./team.service.js";
 
 export const teamController = {
+  getAllTeams: async (req: Request, res: Response) => {
+    try {
+      const { data, pagination } = await teamService.getAllTeams(req.query);
+      res.status(200).json({ status: "success", data, pagination });
+    } catch (error: any) {
+      res.status(400).json({
+        status: "error",
+        message: error.message || "An unknown error occurred",
+      });
+    }
+  },
+
   createTeam: async (req: Request, res: Response) => {
     try {
       const team = await teamService.createTeam(req.body, req.user.id);
@@ -183,6 +195,60 @@ export const teamController = {
       res.status(200).json({
         status: "success",
         message: "Member removed",
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        status: "error",
+        message: error.message || "An unknown error occurred",
+      });
+    }
+  },
+
+  // ---- Admin overrides ----
+
+  adminDeleteTeam: async (req: Request, res: Response) => {
+    try {
+      await teamService.adminDeleteTeam(req.params.id as string);
+      res.status(200).json({
+        status: "success",
+        message: "Team deleted by admin",
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        status: "error",
+        message: error.message || "An unknown error occurred",
+      });
+    }
+  },
+
+  adminTransferOwnership: async (req: Request, res: Response) => {
+    try {
+      const data = await teamService.adminTransferOwnership(
+        req.params.id as string,
+        req.body.newOwnerId,
+      );
+      res.status(200).json({
+        status: "success",
+        message: "Team ownership transferred",
+        data,
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        status: "error",
+        message: error.message || "An unknown error occurred",
+      });
+    }
+  },
+
+  adminRemoveMember: async (req: Request, res: Response) => {
+    try {
+      await teamService.adminRemoveMember(
+        req.params.id as string,
+        req.params.userId as string,
+      );
+      res.status(200).json({
+        status: "success",
+        message: "Member removed by admin",
       });
     } catch (error: any) {
       res.status(400).json({

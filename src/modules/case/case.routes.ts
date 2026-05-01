@@ -1,16 +1,39 @@
 import { Router } from "express";
 import { caseController } from "./case.controller.js";
 import caseFileRoutes from "../case-file/case-file.routes.js";
-import { userProtected } from "../../middlewares/roles.middleware.js";
+import {
+  adminProtected,
+  userProtected,
+} from "../../middlewares/roles.middleware.js";
 import { validate } from "../../middlewares/validate.js";
 import {
   assignCaseModel,
   createCaseModel,
+  transferCaseModel,
   updateCaseModel,
   updateCaseStatusModel,
 } from "./case.validation.js";
 
 const router = Router();
+
+// ---- Admin-only routes ----
+router.patch(
+  "/admin/:id",
+  adminProtected,
+  validate(updateCaseModel),
+  caseController.adminUpdateCase,
+);
+router.delete(
+  "/admin/:id",
+  adminProtected,
+  caseController.adminDeleteCase,
+);
+router.post(
+  "/admin/:id/transfer",
+  adminProtected,
+  validate(transferCaseModel),
+  caseController.adminTransferOwnership,
+);
 
 router.use(userProtected);
 

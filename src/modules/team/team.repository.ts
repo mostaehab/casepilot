@@ -1,4 +1,5 @@
 import { pool } from "../../config/db.js";
+import { BuiltQuery } from "../../utils/query.js";
 import { createTeamInput, updateTeamInput } from "./team.validation.js";
 
 export const teamRepository = {
@@ -10,6 +11,26 @@ export const teamRepository = {
     const values = [name, description || null, ownerId];
     const { rows } = await pool.query(query, values);
     return rows[0];
+  },
+
+  findAllTeams: async (q: BuiltQuery) => {
+    const dataQuery = `
+      SELECT t.*, u.name AS owner_name, u.email AS owner_email
+      FROM "team" t
+      JOIN "user" u ON t.owner_id = u.id
+      ${q.where}
+      ${q.orderBy}
+      ${q.pagination}
+    `;
+    const countQuery = `SELECT COUNT(*)::int AS total FROM "team" t ${q.where}`;
+    const [dataResult, countResult] = await Promise.all([
+      pool.query(dataQuery, q.values),
+      pool.query(countQuery, q.whereValues),
+    ]);
+    return {
+      rows: dataResult.rows,
+      total: countResult.rows[0].total as number,
+    };
   },
 
   findTeamById: async (id: string) => {
@@ -55,6 +76,11 @@ export const teamRepository = {
     const query = `
       INSERT INTO "team_member" (team_id, user_id, invited_by, role, status)
       VALUES ($1, $2, $3, $4, 'pending')
+      ON CONFLICT (team_id, user_id) DO UPDATE
+      SET invited_by = EXCLUDED.invited_by,
+          role = EXCLUDED.role,
+          status = 'pending',
+          joined_at = NULL
       RETURNING *
     `;
     const values = [teamId, userId, invitedBy, role];
@@ -107,6 +133,19 @@ export const teamRepository = {
     const values = [teamId, userId];
     const { rows } = await pool.query(query, values);
     return rows[0];
+  },
+
+  transferTeamOwnership: async (teamId: string, newOwnerId: string) => {
+    const query = `UPDATE "team" SET owner_id = $1, updated_at = NOW() WHERE id = $2 RETURNING *`;
+    const { rows } = await pool.query(query, [newOwnerId, teamId]);
+    return rows[0];
+  },
+
+  hardRemoveMember: async (teamId: string, userId: string) => {
+    await pool.query(
+      `DELETE FROM "team_member" WHERE team_id = $1 AND user_id = $2`,
+      [teamId, userId],
+    );
   },
 
   findTeamsByUserId: async (userId: string) => {

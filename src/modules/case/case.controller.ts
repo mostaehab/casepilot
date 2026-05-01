@@ -38,6 +38,18 @@ export const caseController = {
     }
   },
 
+  getAllCases: async (req: Request, res: Response) => {
+    try {
+      const { data, pagination } = await caseService.getAllCases(req.query);
+      res.status(200).json({ status: "success", data, pagination });
+    } catch (error: any) {
+      res.status(400).json({
+        status: "error",
+        message: error.message || "An unknown error occurred",
+      });
+    }
+  },
+
   getMyCases: async (req: Request, res: Response) => {
     try {
       const data = await caseService.getMyCases(req.user.id);
@@ -177,6 +189,61 @@ export const caseController = {
       res.status(200).json({
         status: "success",
         message: "User unassigned from case",
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        status: "error",
+        message: error.message || "An unknown error occurred",
+      });
+    }
+  },
+
+  // ---- Admin overrides ----
+
+  adminUpdateCase: async (req: Request, res: Response) => {
+    try {
+      const data = await caseService.adminUpdateCase(
+        req.params.id as string,
+        req.body,
+      );
+      res.status(200).json({
+        status: "success",
+        message: "Case updated by admin",
+        data,
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        status: "error",
+        message: error.message || "An unknown error occurred",
+      });
+    }
+  },
+
+  adminDeleteCase: async (req: Request, res: Response) => {
+    try {
+      await caseService.adminDeleteCase(req.params.id as string);
+      res.status(200).json({
+        status: "success",
+        message: "Case deleted by admin",
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        status: "error",
+        message: error.message || "An unknown error occurred",
+      });
+    }
+  },
+
+  adminTransferOwnership: async (req: Request, res: Response) => {
+    try {
+      const data = await caseService.adminTransferOwnership(
+        req.params.id as string,
+        req.body.newOwnerId,
+      );
+      res.status(200).json({
+        status: "success",
+        message: "Case ownership transferred",
+        data,
       });
     } catch (error: any) {
       res.status(400).json({

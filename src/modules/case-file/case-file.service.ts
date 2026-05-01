@@ -91,4 +91,15 @@ export const caseFileService = {
     await del(file.file_url);
     await caseFileRepository.deleteFile(fileId);
   },
+
+  // ---- Admin overrides ----
+
+  adminDeleteFile: async (fileId: string) => {
+    const file = await caseFileRepository.findFileById(fileId);
+    if (!file) {
+      throw new Error("File not found");
+    }
+    await del(file.file_url);
+    await caseFileRepository.deleteFile(fileId);
+  },
 };

@@ -57,3 +57,9 @@ export const assignCaseModel = z.object({
 });
 
 export type assignCaseInput = z.infer<typeof assignCaseModel>;
+
+export const transferCaseModel = z.object({
+  newOwnerId: z.string().min(1, "New owner ID is required"),
+});
+
+export type transferCaseInput = z.infer<typeof transferCaseModel>;

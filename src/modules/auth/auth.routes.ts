@@ -7,13 +7,18 @@ import {
   registerModel,
   changePasswordModel,
   resetPasswordModel,
+  forgetPasswordModel,
 } from "./auth.validation.js";
 
 const router = Router();
 
 router.post("/login", validate(loginModel), authController.login);
 router.post("/register", validate(registerModel), authController.register);
-router.post("/forget-password", authController.forgetPassword);
+router.post(
+  "/forget-password",
+  validate(forgetPasswordModel),
+  authController.forgetPassword,
+);
 router.post(
   "/reset-password",
   validate(resetPasswordModel),

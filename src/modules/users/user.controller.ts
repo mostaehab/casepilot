@@ -11,14 +11,7 @@ export const userController = {
           .json({ status: "error", message: "User ID is required" });
       }
       const user = await userService.findUserById(id);
-
-      if (!user) {
-        return res
-          .status(404)
-          .json({ status: "error", message: "User not found" });
-      }
-
-      res.status(200).json({ user });
+      res.status(200).json({ status: "success", data: user });
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "An unknown error occurred";
@@ -28,13 +21,8 @@ export const userController = {
 
   getAllUsers: async (req: Request, res: Response) => {
     try {
-      const users = await userService.findAllUsers();
-      if (!users || users.length === 0) {
-        return res
-          .status(404)
-          .json({ status: "error", message: "No users found" });
-      }
-      res.status(200).json({ users });
+      const { data, pagination } = await userService.findAllUsers(req.query);
+      res.status(200).json({ status: "success", data, pagination });
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "An unknown error occurred";
@@ -51,7 +39,11 @@ export const userController = {
           .json({ status: "error", message: "User ID is required" });
       }
       const updatedUser = await userService.updateUserById(id, req.body);
-      res.status(200).json({ user: updatedUser });
+      res.status(200).json({
+        status: "success",
+        message: "User updated successfully",
+        data: updatedUser,
+      });
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "An unknown error occurred";
@@ -69,12 +61,67 @@ export const userController = {
       }
       await userService.deleteUserById(id);
       res
-        .status(204)
+        .status(200)
         .json({ status: "success", message: "User deactivated successfully" });
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "An unknown error occurred";
       res.status(500).json({ status: "error", message: errorMessage });
+    }
+  },
+
+  // ---- Admin overrides ----
+
+  adminRestoreUser: async (req: Request, res: Response) => {
+    try {
+      const data = await userService.adminRestoreUser(req.params.id as string);
+      res.status(200).json({
+        status: "success",
+        message: "User restored",
+        data,
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        status: "error",
+        message: error.message || "An unknown error occurred",
+      });
+    }
+  },
+
+  adminHardDeleteUser: async (req: Request, res: Response) => {
+    try {
+      await userService.adminHardDeleteUser(
+        req.params.id as string,
+        req.user.id,
+      );
+      res.status(200).json({
+        status: "success",
+        message: "User permanently deleted",
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        status: "error",
+        message: error.message || "An unknown error occurred",
+      });
+    }
+  },
+
+  adminUpdateUserRole: async (req: Request, res: Response) => {
+    try {
+      const data = await userService.adminUpdateUserRole(
+        req.params.id as string,
+        req.body.role,
+      );
+      res.status(200).json({
+        status: "success",
+        message: "User role updated",
+        data,
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        status: "error",
+        message: error.message || "An unknown error occurred",
+      });
     }
   },
 };

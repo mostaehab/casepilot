@@ -36,3 +36,9 @@ export const resetPasswordModel = z.object({
 export type resetPasswordInput = z.infer<typeof resetPasswordModel>;
 
 export type changePasswordInput = z.infer<typeof changePasswordModel>;
+
+export const forgetPasswordModel = z.object({
+  email: z.string().email("Invalid email address"),
+});
+
+export type forgetPasswordInput = z.infer<typeof forgetPasswordModel>;

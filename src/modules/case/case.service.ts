@@ -1,9 +1,6 @@
 import { teamRepository } from "../team/team.repository.js";
 import { caseRepository } from "./case.repository.js";
-import {
-  createCaseInput,
-  updateCaseInput,
-} from "./case.validation.js";
+import { createCaseInput, updateCaseInput } from "./case.validation.js";
 
 const canAccessCase = async (
   caseId: string,
@@ -50,6 +47,20 @@ export const caseService = {
     }
 
     return await caseRepository.createCase(input, ownerId);
+  },
+
+  getAllCases: async (reqQuery: any) => {
+    const queryObj = { ...reqQuery };
+    const allowedFields = ["status", "priority", "type", "limit", "page"];
+
+    
+
+    Object.keys(queryObj).forEach((key) => {
+      if (!allowedFields.includes(key)) {
+        delete queryObj[key];
+      }
+    });
+    return await caseRepository.findAllCases(queryObj);
   },
 
   getCaseById: async (id: string, requesterId: string) => {
@@ -122,11 +133,7 @@ export const caseService = {
     return await caseRepository.updateCase(id, input);
   },
 
-  updateCaseStatus: async (
-    id: string,
-    status: string,
-    requesterId: string,
-  ) => {
+  updateCaseStatus: async (id: string, status: string, requesterId: string) => {
     const c = await caseRepository.findCaseById(id);
     if (!c) {
       throw new Error("Case not found");
@@ -151,11 +158,7 @@ export const caseService = {
     await caseRepository.deleteCase(id);
   },
 
-  assignUser: async (
-    caseId: string,
-    userId: string,
-    requesterId: string,
-  ) => {
+  assignUser: async (caseId: string, userId: string, requesterId: string) => {
     const c = await caseRepository.findCaseById(caseId);
     if (!c) {
       throw new Error("Case not found");
@@ -188,11 +191,7 @@ export const caseService = {
     return await caseRepository.assignUser(caseId, userId, requesterId);
   },
 
-  unassignUser: async (
-    caseId: string,
-    userId: string,
-    requesterId: string,
-  ) => {
+  unassignUser: async (caseId: string, userId: string, requesterId: string) => {
     const c = await caseRepository.findCaseById(caseId);
     if (!c) {
       throw new Error("Case not found");

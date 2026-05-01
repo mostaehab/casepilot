@@ -26,3 +26,9 @@ export const updateMemberRoleModel = z.object({
 });
 
 export type updateMemberRoleInput = z.infer<typeof updateMemberRoleModel>;
+
+export const transferTeamModel = z.object({
+  newOwnerId: z.string().min(1, "New owner ID is required"),
+});
+
+export type transferTeamInput = z.infer<typeof transferTeamModel>;

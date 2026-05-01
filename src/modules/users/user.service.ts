@@ -10,8 +10,18 @@ export const userService = {
     return user;
   },
 
-  findAllUsers: async () => {
-    return await userRepository.findAllUsers();
+  findAllUsers: async (query: any) => {
+    const queryObj = { ...query };
+    const allowedFields = ["role", "status"];
+
+    Object.keys(queryObj).forEach((key) => {
+      if (!allowedFields.includes(key)) {
+        delete queryObj[key];
+      }
+    });
+
+    
+    return await userRepository.findAllUsers(queryObj);
   },
 
   updateUserById: async (id: string, input: updateUserInput) => {

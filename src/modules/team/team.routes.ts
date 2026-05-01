@@ -1,18 +1,41 @@
 import { Router } from "express";
 import { teamController } from "./team.controller.js";
-import { userProtected } from "../../middlewares/roles.middleware.js";
+import {
+  adminProtected,
+  userProtected,
+} from "../../middlewares/roles.middleware.js";
 import { validate } from "../../middlewares/validate.js";
 import {
   createTeamModel,
   inviteMemberModel,
+  transferTeamModel,
   updateMemberRoleModel,
   updateTeamModel,
 } from "./team.validation.js";
 
 const router = Router();
 
+// ---- Admin-only routes (gated independently before the userProtected guard) ----
+router.delete(
+  "/admin/:id",
+  adminProtected,
+  teamController.adminDeleteTeam,
+);
+router.post(
+  "/admin/:id/transfer",
+  adminProtected,
+  validate(transferTeamModel),
+  teamController.adminTransferOwnership,
+);
+router.delete(
+  "/admin/:id/members/:userId",
+  adminProtected,
+  teamController.adminRemoveMember,
+);
+
 router.use(userProtected);
 
+router.get("/", teamController.getAllTeams);
 router.post("/", validate(createTeamModel), teamController.createTeam);
 router.get("/me", teamController.getMyTeam);
 router.get("/memberships", teamController.getMyMemberships);

@@ -2,7 +2,13 @@ import { pool } from "../../config/db.js";
 import { updateUserInput } from "./user.validation.js";
 
 export const userRepository = {
-  findAllUsers: async () => {
+  findAllUsers: async (queryObj: any) => {
+
+    if(queryObj.role) {
+      
+    }
+
+
     const query = `SELECT id, name, email, role, is_active, created_at, updated_at FROM "user"`;
     const { rows } = await pool.query(query);
     return rows;

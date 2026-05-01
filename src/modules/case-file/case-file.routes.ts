@@ -1,7 +1,10 @@
 import { Router } from "express";
 import multer from "multer";
 import { caseFileController } from "./case-file.controller.js";
-import { userProtected } from "../../middlewares/roles.middleware.js";
+import {
+  adminProtected,
+  userProtected,
+} from "../../middlewares/roles.middleware.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -9,6 +12,12 @@ const upload = multer({
 });
 
 const router = Router({ mergeParams: true });
+
+router.delete(
+  "/admin/:fileId",
+  adminProtected,
+  caseFileController.adminDeleteFile,
+);
 
 router.use(userProtected);
 

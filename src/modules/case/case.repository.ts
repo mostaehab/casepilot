@@ -1,4 +1,5 @@
 import { pool } from "../../config/db.js";
+import { BuiltQuery } from "../../utils/query.js";
 import { createCaseInput, updateCaseInput } from "./case.validation.js";
 
 export const caseRepository = {
@@ -49,6 +50,30 @@ export const caseRepository = {
     ];
     const { rows } = await pool.query(query, values);
     return rows[0];
+  },
+
+  findAllCases: async (q: BuiltQuery) => {
+    const dataQuery = `
+      SELECT c.*, u.name AS owner_name, u.email AS owner_email,
+             t.name AS team_name
+      FROM "case" c
+      JOIN "user" u ON c.owner_id = u.id
+      LEFT JOIN "team" t ON c.team_id = t.id
+      ${q.where}
+      ${q.orderBy}
+      ${q.pagination}
+    `;
+    const countQuery = `SELECT COUNT(*)::int AS total FROM "case" c ${q.where}`;
+
+    const [dataResult, countResult] = await Promise.all([
+      pool.query(dataQuery, q.values),
+      pool.query(countQuery, q.whereValues),
+    ]);
+
+    return {
+      rows: dataResult.rows,
+      total: countResult.rows[0].total as number,
+    };
   },
 
   findCaseById: async (id: string) => {
@@ -104,6 +129,7 @@ export const caseRepository = {
       teamId,
     } = input;
 
+    const teamIdProvided = teamId !== undefined;
     const query = `
       UPDATE "case" SET
         title = COALESCE($1, title),
@@ -118,25 +144,25 @@ export const caseRepository = {
         client_name = COALESCE($10, client_name),
         client_phone = COALESCE($11, client_phone),
         client_national_number = COALESCE($12, client_national_number),
-        team_id = $13,
+        team_id = ${teamIdProvided ? "$13" : "team_id"},
         updated_at = NOW()
       WHERE id = $14
       RETURNING *
     `;
     const values = [
-      title || null,
-      caseNumber || null,
-      description || null,
-      type || null,
-      priority || null,
-      status || null,
-      courtName || null,
-      filingDate || null,
-      nextHearingDate || null,
-      clientName || null,
-      clientPhone || null,
-      clientNationalNumber || null,
-      teamId === undefined ? null : teamId,
+      title ?? null,
+      caseNumber ?? null,
+      description ?? null,
+      type ?? null,
+      priority ?? null,
+      status ?? null,
+      courtName ?? null,
+      filingDate ?? null,
+      nextHearingDate ?? null,
+      clientName ?? null,
+      clientPhone ?? null,
+      clientNationalNumber ?? null,
+      teamIdProvided ? (teamId ?? null) : null,
       id,
     ];
     const { rows } = await pool.query(query, values);
@@ -151,6 +177,12 @@ export const caseRepository = {
 
   deleteCase: async (id: string) => {
     await pool.query(`DELETE FROM "case" WHERE id = $1`, [id]);
+  },
+
+  transferCaseOwnership: async (id: string, newOwnerId: string) => {
+    const query = `UPDATE "case" SET owner_id = $1, updated_at = NOW() WHERE id = $2 RETURNING *`;
+    const { rows } = await pool.query(query, [newOwnerId, id]);
+    return rows[0];
   },
 
   // ---- Assignment operations ----

@@ -9,6 +9,7 @@ import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
 dotenv.config();
 const app = express();
+app.set("trust proxy", 1);
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -23,7 +24,6 @@ const authLimiter = rateLimit({
   limit: 10,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  skipSuccessfulRequests: true,
   message:
     "Too many login attempts from this IP, please try again after 15 minutes",
 });
@@ -45,7 +45,6 @@ app.use(
     credentials: true,
   }),
 );
-app.set("trust proxy", 1); // Trust first proxy for rate limiting
 app.use(express.json());
 app.use(morgan("dev"));
 app.use("/api/", apiLimiter);
