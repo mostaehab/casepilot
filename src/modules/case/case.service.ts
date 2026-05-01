@@ -30,14 +30,16 @@ const canAccessCase = async (
 
 export const caseService = {
   createCase: async (input: createCaseInput, ownerId: string) => {
-    if (input.teamId) {
-      const team = await teamRepository.findTeamById(input.teamId);
+    const teamId = input.teamId?.trim() || undefined;
+
+    if (teamId) {
+      const team = await teamRepository.findTeamById(teamId);
       if (!team) {
         throw new Error("Team not found");
       }
       const isOwner = team.owner_id === ownerId;
       const member = await teamRepository.findMemberByTeamAndUser(
-        input.teamId,
+        teamId,
         ownerId,
       );
       const isActiveMember = member && member.status === "active";
@@ -46,7 +48,7 @@ export const caseService = {
       }
     }
 
-    return await caseRepository.createCase(input, ownerId);
+    return await caseRepository.createCase({ ...input, teamId }, ownerId);
   },
 
   getAllCases: async (reqQuery: any) => {
