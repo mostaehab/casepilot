@@ -1,255 +1,129 @@
 import { Request, Response } from "express";
 import { caseService } from "./case.service.js";
+import { asyncHandler } from "../../middlewares/asyncHandler.js";
 
 export const caseController = {
-  createCase: async (req: Request, res: Response) => {
-    try {
-      const created = await caseService.createCase(req.body, req.user.id);
-      res.status(201).json({
-        status: "success",
-        message: "Case created successfully",
-        data: created,
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        status: "error",
-        message: error.message || "An unknown error occurred",
-      });
-    }
-  },
+  createCase: asyncHandler(async (req: Request, res: Response) => {
+    const created = await caseService.createCase(req.body, req.user.id);
+    res.status(201).json({
+      status: "success",
+      message: "Case created successfully",
+      data: created,
+    });
+  }),
 
-  getCaseById: async (req: Request, res: Response) => {
-    try {
-      const data = await caseService.getCaseById(
-        req.params.id as string,
-        req.user.id,
-      );
-      if (!data) {
-        return res
-          .status(404)
-          .json({ status: "error", message: "Case not found" });
-      }
-      res.status(200).json({ status: "success", data });
-    } catch (error: any) {
-      res.status(404).json({
-        status: "error",
-        message: error.message || "An unknown error occurred",
-      });
-    }
-  },
+  getCaseById: asyncHandler(async (req: Request, res: Response) => {
+    const data = await caseService.getCaseById(
+      req.params.id as string,
+      req.user.id,
+    );
+    res.status(200).json({ status: "success", data });
+  }),
 
-  getAllCases: async (req: Request, res: Response) => {
-    try {
-      const { data, pagination } = await caseService.getAllCases(req.query);
-      res.status(200).json({ status: "success", data, pagination });
-    } catch (error: any) {
-      res.status(400).json({
-        status: "error",
-        message: error.message || "An unknown error occurred",
-      });
-    }
-  },
+  getAllCases: asyncHandler(async (req: Request, res: Response) => {
+    const { data, pagination } = await caseService.getAllCases(req.query);
+    res.status(200).json({ status: "success", data, pagination });
+  }),
 
-  getMyCases: async (req: Request, res: Response) => {
-    try {
-      const data = await caseService.getMyCases(req.user.id);
-      if (!data || data.length === 0) {
-        return res
-          .status(404)
-          .json({ status: "error", message: "No cases found for the user" });
-      }
-      res.status(200).json({ status: "success", data });
-    } catch (error: any) {
-      res.status(400).json({
-        status: "error",
-        message: error.message || "An unknown error occurred",
-      });
-    }
-  },
+  getMyCases: asyncHandler(async (req: Request, res: Response) => {
+    const data = await caseService.getMyCases(req.user.id);
+    res.status(200).json({ status: "success", data });
+  }),
 
-  getCasesByTeam: async (req: Request, res: Response) => {
-    try {
-      const data = await caseService.getCasesByTeam(
-        req.params.teamId as string,
-        req.user.id,
-      );
-      if (!data || data.length === 0) {
-        return res
-          .status(404)
-          .json({ status: "error", message: "No cases found for this team" });
-      }
-      res.status(200).json({ status: "success", data });
-    } catch (error: any) {
-      res.status(400).json({
-        status: "error",
-        message: error.message || "An unknown error occurred",
-      });
-    }
-  },
+  getCasesByTeam: asyncHandler(async (req: Request, res: Response) => {
+    const data = await caseService.getCasesByTeam(
+      req.params.teamId as string,
+      req.user.id,
+    );
+    res.status(200).json({ status: "success", data });
+  }),
 
-  getAssignedCases: async (req: Request, res: Response) => {
-    try {
-      const data = await caseService.getAssignedCases(req.user.id);
-      if (!data || data.length === 0) {
-        return res
-          .status(404)
-          .json({ status: "error", message: "No assigned cases found" });
-      }
-      res.status(200).json({ status: "success", data });
-    } catch (error: any) {
-      res.status(400).json({
-        status: "error",
-        message: error.message || "An unknown error occurred",
-      });
-    }
-  },
+  getAssignedCases: asyncHandler(async (req: Request, res: Response) => {
+    const data = await caseService.getAssignedCases(req.user.id);
+    res.status(200).json({ status: "success", data });
+  }),
 
-  updateCase: async (req: Request, res: Response) => {
-    try {
-      const data = await caseService.updateCase(
-        req.params.id as string,
-        req.body,
-        req.user.id,
-      );
-      res.status(200).json({
-        status: "success",
-        message: "Case updated successfully",
-        data,
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        status: "error",
-        message: error.message || "An unknown error occurred",
-      });
-    }
-  },
+  updateCase: asyncHandler(async (req: Request, res: Response) => {
+    const data = await caseService.updateCase(
+      req.params.id as string,
+      req.body,
+      req.user.id,
+    );
+    res.status(200).json({
+      status: "success",
+      message: "Case updated successfully",
+      data,
+    });
+  }),
 
-  updateCaseStatus: async (req: Request, res: Response) => {
-    try {
-      const data = await caseService.updateCaseStatus(
-        req.params.id as string,
-        req.body.status,
-        req.user.id,
-      );
-      res.status(200).json({
-        status: "success",
-        message: "Case status updated",
-        data,
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        status: "error",
-        message: error.message || "An unknown error occurred",
-      });
-    }
-  },
+  updateCaseStatus: asyncHandler(async (req: Request, res: Response) => {
+    const data = await caseService.updateCaseStatus(
+      req.params.id as string,
+      req.body.status,
+      req.user.id,
+    );
+    res
+      .status(200)
+      .json({ status: "success", message: "Case status updated", data });
+  }),
 
-  deleteCase: async (req: Request, res: Response) => {
-    try {
-      await caseService.deleteCase(req.params.id as string, req.user.id);
-      res.status(200).json({
-        status: "success",
-        message: "Case deleted successfully",
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        status: "error",
-        message: error.message || "An unknown error occurred",
-      });
-    }
-  },
+  deleteCase: asyncHandler(async (req: Request, res: Response) => {
+    await caseService.deleteCase(req.params.id as string, req.user.id);
+    res
+      .status(200)
+      .json({ status: "success", message: "Case deleted successfully" });
+  }),
 
-  assignUser: async (req: Request, res: Response) => {
-    try {
-      const data = await caseService.assignUser(
-        req.params.id as string,
-        req.body.userId,
-        req.user.id,
-      );
-      res.status(201).json({
-        status: "success",
-        message: "User assigned to case",
-        data,
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        status: "error",
-        message: error.message || "An unknown error occurred",
-      });
-    }
-  },
+  assignUser: asyncHandler(async (req: Request, res: Response) => {
+    const data = await caseService.assignUser(
+      req.params.id as string,
+      req.body.userId,
+      req.user.id,
+    );
+    res
+      .status(201)
+      .json({ status: "success", message: "User assigned to case", data });
+  }),
 
-  unassignUser: async (req: Request, res: Response) => {
-    try {
-      await caseService.unassignUser(
-        req.params.id as string,
-        req.params.userId as string,
-        req.user.id,
-      );
-      res.status(200).json({
-        status: "success",
-        message: "User unassigned from case",
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        status: "error",
-        message: error.message || "An unknown error occurred",
-      });
-    }
-  },
+  unassignUser: asyncHandler(async (req: Request, res: Response) => {
+    await caseService.unassignUser(
+      req.params.id as string,
+      req.params.userId as string,
+      req.user.id,
+    );
+    res
+      .status(200)
+      .json({ status: "success", message: "User unassigned from case" });
+  }),
 
   // ---- Admin overrides ----
 
-  adminUpdateCase: async (req: Request, res: Response) => {
-    try {
-      const data = await caseService.adminUpdateCase(
-        req.params.id as string,
-        req.body,
-      );
-      res.status(200).json({
-        status: "success",
-        message: "Case updated by admin",
-        data,
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        status: "error",
-        message: error.message || "An unknown error occurred",
-      });
-    }
-  },
+  adminUpdateCase: asyncHandler(async (req: Request, res: Response) => {
+    const data = await caseService.adminUpdateCase(
+      req.params.id as string,
+      req.body,
+    );
+    res
+      .status(200)
+      .json({ status: "success", message: "Case updated by admin", data });
+  }),
 
-  adminDeleteCase: async (req: Request, res: Response) => {
-    try {
-      await caseService.adminDeleteCase(req.params.id as string);
-      res.status(200).json({
-        status: "success",
-        message: "Case deleted by admin",
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        status: "error",
-        message: error.message || "An unknown error occurred",
-      });
-    }
-  },
+  adminDeleteCase: asyncHandler(async (req: Request, res: Response) => {
+    await caseService.adminDeleteCase(req.params.id as string);
+    res
+      .status(200)
+      .json({ status: "success", message: "Case deleted by admin" });
+  }),
 
-  adminTransferOwnership: async (req: Request, res: Response) => {
-    try {
-      const data = await caseService.adminTransferOwnership(
-        req.params.id as string,
-        req.body.newOwnerId,
-      );
-      res.status(200).json({
-        status: "success",
-        message: "Case ownership transferred",
-        data,
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        status: "error",
-        message: error.message || "An unknown error occurred",
-      });
-    }
-  },
+  adminTransferOwnership: asyncHandler(async (req: Request, res: Response) => {
+    const data = await caseService.adminTransferOwnership(
+      req.params.id as string,
+      req.body.newOwnerId,
+    );
+    res.status(200).json({
+      status: "success",
+      message: "Case ownership transferred",
+      data,
+    });
+  }),
 };

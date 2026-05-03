@@ -1,20 +1,15 @@
 import { betterAuth } from "better-auth";
 import dotenv from "dotenv";
-import { Pool } from "pg";
 import { ROLES } from "./roles.js";
+import { emailService } from "./email.js";
+import { pool } from "../config/db.js";
 
 dotenv.config();
 
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET!,
   baseURL: process.env.BETTER_AUTH_URL,
-  database: new Pool({
-    connectionString: process.env.DATABASE_URL?.replace(
-      "channel_binding=require",
-      "channel_binding=prefer",
-    ),
-    ssl: { rejectUnauthorized: false },
-  }),
+  database: pool,
   advanced: {
     useSecureCookies: process.env.NODE_ENV === "production",
     defaultCookieAttributes: {
@@ -28,10 +23,21 @@ export const auth = betterAuth({
     .filter(Boolean),
   emailAndPassword: {
     enabled: true,
+    requireEmailVerification: false,
+    sendResetPassword: async ({ user, url }) => {
+      await emailService.sendPasswordResetEmail(user.email, user.name, url);
+    },
+  },
+  emailVerification: {
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      await emailService.sendVerificationEmail(user.email, user.name, url);
+    },
   },
 
   user: {
-additionalFields: {
+    additionalFields: {
       role: {
         type: "string",
         required: true,

@@ -6,6 +6,8 @@ import {
   inviteMemberInput,
   updateTeamInput,
 } from "./team.validation.js";
+import { emailService } from "../../lib/email.js";
+import { conflict, forbidden, notFound } from "../../lib/errors.js";
 
 const teamQueryConfig = {
   filterable: {
@@ -36,7 +38,7 @@ export const teamService = {
   createTeam: async (input: createTeamInput, ownerId: string) => {
     const existing = await teamRepository.findTeamByOwnerId(ownerId);
     if (existing) {
-      throw new Error("You already own a team");
+      throw conflict("You already own a team");
     }
     return await teamRepository.createTeam(input, ownerId);
   },
@@ -44,7 +46,7 @@ export const teamService = {
   getTeamById: async (id: string) => {
     const team = await teamRepository.findTeamById(id);
     if (!team) {
-      throw new Error("Team not found");
+      throw notFound("Team not found");
     }
     const members = await teamRepository.findMembersByTeamId(id);
     return { ...team, members };
@@ -53,7 +55,7 @@ export const teamService = {
   getMyTeam: async (ownerId: string) => {
     const team = await teamRepository.findTeamByOwnerId(ownerId);
     if (!team) {
-      throw new Error("You don't own a team yet");
+      throw notFound("You don't own a team yet");
     }
     const members = await teamRepository.findMembersByTeamId(team.id);
     return { ...team, members };
@@ -70,10 +72,10 @@ export const teamService = {
   ) => {
     const team = await teamRepository.findTeamById(id);
     if (!team) {
-      throw new Error("Team not found");
+      throw notFound("Team not found");
     }
     if (team.owner_id !== requesterId) {
-      throw new Error("Only the team owner can update the team");
+      throw forbidden("Only the team owner can update the team");
     }
     return await teamRepository.updateTeam(id, input);
   },
@@ -81,10 +83,10 @@ export const teamService = {
   deleteTeam: async (id: string, requesterId: string) => {
     const team = await teamRepository.findTeamById(id);
     if (!team) {
-      throw new Error("Team not found");
+      throw notFound("Team not found");
     }
     if (team.owner_id !== requesterId) {
-      throw new Error("Only the team owner can delete the team");
+      throw forbidden("Only the team owner can delete the team");
     }
     await teamRepository.deleteTeam(id);
   },
@@ -96,19 +98,19 @@ export const teamService = {
   ) => {
     const team = await teamRepository.findTeamById(teamId);
     if (!team) {
-      throw new Error("Team not found");
+      throw notFound("Team not found");
     }
     if (team.owner_id !== invitedBy) {
-      throw new Error("Only the team owner can invite members");
+      throw forbidden("Only the team owner can invite members");
     }
 
     const user = await userRepository.findUserByEmail(input.email);
     if (!user) {
-      throw new Error("User not found");
+      throw notFound("User not found");
     }
 
     if (user.id === team.owner_id) {
-      throw new Error("Cannot invite the team owner");
+      throw conflict("Cannot invite the team owner");
     }
 
     const existing = await teamRepository.findMemberByTeamAndUser(
@@ -116,26 +118,67 @@ export const teamService = {
       user.id,
     );
     if (existing && existing.status !== "removed") {
-      throw new Error("User is already a member of this team");
+      throw conflict("User is already a member of this team");
     }
 
-    return await teamRepository.addMember(
+    const member = await teamRepository.addMember(
       teamId,
       user.id,
       invitedBy,
       input.role,
     );
+
+    const inviter = await userRepository.findUserById(invitedBy);
+    await emailService.sendTeamInviteEmail(
+      user.email,
+      user.name,
+      team.name,
+      inviter?.name ?? "A teammate",
+      input.role,
+      team.id,
+    );
+
+    return member;
   },
 
   acceptInvite: async (teamId: string, userId: string) => {
     const member = await teamRepository.findMemberByTeamAndUser(teamId, userId);
     if (!member) {
-      throw new Error("Invitation not found");
+      throw notFound("Invitation not found");
     }
     if (member.status !== "pending") {
-      throw new Error("Invitation is no longer pending");
+      throw conflict("Invitation is no longer pending");
     }
     return await teamRepository.updateMemberStatus(teamId, userId, "active");
+  },
+
+  cancelInvitation: async (
+    teamId: string,
+    userId: string,
+    requesterId: string,
+  ) => {
+    const team = await teamRepository.findTeamById(teamId);
+    if (!team) {
+      throw notFound("Team not found");
+    }
+
+    const isOwner = team.owner_id === requesterId;
+    const isInvitee = userId === requesterId;
+    if (!isOwner && !isInvitee) {
+      throw forbidden(
+        "Only the team owner or the invited user can cancel this invitation",
+      );
+    }
+
+    const member = await teamRepository.findMemberByTeamAndUser(teamId, userId);
+    if (!member) {
+      throw notFound("Invitation not found");
+    }
+    if (member.status !== "pending") {
+      throw conflict("Invitation is no longer pending");
+    }
+
+    await teamRepository.hardRemoveMember(teamId, userId);
   },
 
   updateMemberRole: async (
@@ -146,15 +189,15 @@ export const teamService = {
   ) => {
     const team = await teamRepository.findTeamById(teamId);
     if (!team) {
-      throw new Error("Team not found");
+      throw notFound("Team not found");
     }
     if (team.owner_id !== requesterId) {
-      throw new Error("Only the team owner can change member roles");
+      throw forbidden("Only the team owner can change member roles");
     }
 
     const member = await teamRepository.findMemberByTeamAndUser(teamId, userId);
     if (!member) {
-      throw new Error("Member not found");
+      throw notFound("Member not found");
     }
 
     return await teamRepository.updateMemberRole(teamId, userId, role);
@@ -167,18 +210,18 @@ export const teamService = {
   ) => {
     const team = await teamRepository.findTeamById(teamId);
     if (!team) {
-      throw new Error("Team not found");
+      throw notFound("Team not found");
     }
     if (team.owner_id !== requesterId) {
-      throw new Error("Only the team owner can remove members");
+      throw forbidden("Only the team owner can remove members");
     }
     if (userId === team.owner_id) {
-      throw new Error("Cannot remove the team owner");
+      throw conflict("Cannot remove the team owner");
     }
 
     const member = await teamRepository.findMemberByTeamAndUser(teamId, userId);
     if (!member) {
-      throw new Error("Member not found");
+      throw notFound("Member not found");
     }
 
     await teamRepository.removeMember(teamId, userId);
@@ -189,7 +232,7 @@ export const teamService = {
   adminDeleteTeam: async (teamId: string) => {
     const team = await teamRepository.findTeamById(teamId);
     if (!team) {
-      throw new Error("Team not found");
+      throw notFound("Team not found");
     }
     await teamRepository.deleteTeam(teamId);
   },
@@ -197,14 +240,14 @@ export const teamService = {
   adminTransferOwnership: async (teamId: string, newOwnerId: string) => {
     const team = await teamRepository.findTeamById(teamId);
     if (!team) {
-      throw new Error("Team not found");
+      throw notFound("Team not found");
     }
     const newOwner = await userRepository.findUserById(newOwnerId);
     if (!newOwner) {
-      throw new Error("New owner not found");
+      throw notFound("New owner not found");
     }
     if (team.owner_id === newOwnerId) {
-      throw new Error("User is already the team owner");
+      throw conflict("User is already the team owner");
     }
     return await teamRepository.transferTeamOwnership(teamId, newOwnerId);
   },
@@ -212,14 +255,14 @@ export const teamService = {
   adminRemoveMember: async (teamId: string, userId: string) => {
     const team = await teamRepository.findTeamById(teamId);
     if (!team) {
-      throw new Error("Team not found");
+      throw notFound("Team not found");
     }
     if (userId === team.owner_id) {
-      throw new Error("Cannot remove the team owner; transfer ownership first");
+      throw conflict("Cannot remove the team owner; transfer ownership first");
     }
     const member = await teamRepository.findMemberByTeamAndUser(teamId, userId);
     if (!member) {
-      throw new Error("Member not found");
+      throw notFound("Member not found");
     }
     await teamRepository.hardRemoveMember(teamId, userId);
   },

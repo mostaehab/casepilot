@@ -49,6 +49,10 @@ router.post(
   teamController.inviteMember,
 );
 router.post("/:id/members/accept", teamController.acceptInvite);
+router.delete(
+  "/:id/invitations/:userId",
+  teamController.cancelInvitation,
+);
 router.patch(
   "/:id/members/:userId",
   validate(updateMemberRoleModel),

@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { authService } from "./auth.service.js";
 import { fromNodeHeaders } from "better-auth/node";
+import { asyncHandler } from "../../middlewares/asyncHandler.js";
 
 const forwardAuthCookies = (headers: Headers, res: Response) => {
   const setCookies =
@@ -13,135 +14,61 @@ const forwardAuthCookies = (headers: Headers, res: Response) => {
 };
 
 export const authController = {
-  login: async (req: Request, res: Response) => {
-    try {
-      const { headers, token, user } = await authService.login(req.body);
+  login: asyncHandler(async (req: Request, res: Response) => {
+    const { headers, token, user } = await authService.login(req.body);
+    forwardAuthCookies(headers, res);
+    res.status(200).json({
+      status: "success",
+      message: "Login successful",
+      data: { token, user },
+    });
+  }),
 
-      forwardAuthCookies(headers, res);
+  register: asyncHandler(async (req: Request, res: Response) => {
+    const { headers, user } = await authService.register(req.body);
+    forwardAuthCookies(headers, res);
+    res.status(201).json({
+      status: "success",
+      message: "User registered successfully",
+      data: user,
+    });
+  }),
 
-      res.status(200).json({
-        status: "success",
-        message: "Login successful",
-        data: { token, user },
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        status: "error",
-        message: error.message || "An unknown error occurred",
-      });
-    }
-  },
+  logout: asyncHandler(async (req: Request, res: Response) => {
+    const { headers } = await authService.logout(fromNodeHeaders(req.headers));
+    forwardAuthCookies(headers, res);
+    res
+      .status(200)
+      .json({ status: "success", message: "Logged out successfully" });
+  }),
 
-  register: async (req: Request, res: Response) => {
-    try {
-      const { headers, user } = await authService.register(req.body);
+  getCurrentUser: asyncHandler(async (req: Request, res: Response) => {
+    const user = await authService.getCurrentUser(fromNodeHeaders(req.headers));
+    res.status(200).json({
+      status: "success",
+      message: "User retrieved successfully",
+      data: user,
+    });
+  }),
 
-      forwardAuthCookies(headers, res);
+  changePassword: asyncHandler(async (req: Request, res: Response) => {
+    await authService.changePassword(req.body, fromNodeHeaders(req.headers));
+    res.status(200).json({
+      status: "success",
+      message: "Password changed successfully",
+    });
+  }),
 
-      res.status(201).json({
-        status: "success",
-        message: "User registered successfully",
-        data: user,
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        status: "error",
-        message: error.message || "An unknown error occurred",
-      });
-    }
-  },
+  forgetPassword: asyncHandler(async (req: Request, res: Response) => {
+    const { email } = req.body;
+    const message = await authService.forgetPassword(email);
+    res.status(200).json({ status: "success", message });
+  }),
 
-  logout: async (req: Request, res: Response) => {
-    try {
-      const { headers } = await authService.logout(
-        fromNodeHeaders(req.headers),
-      );
-
-      forwardAuthCookies(headers, res);
-
-      res.status(200).json({
-        status: "success",
-        message: "Logged out successfully",
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        status: "error",
-        message: error.message || "An unknown error occurred",
-      });
-    }
-  },
-
-  getCurrentUser: async (req: Request, res: Response) => {
-    try {
-      const user = await authService.getCurrentUser(
-        fromNodeHeaders(req.headers),
-      );
-
-      if (!user) {
-        return res
-          .status(404)
-          .json({ status: "error", message: "User not found" });
-      }
-
-      res.status(200).json({
-        status: "success",
-        message: "User retrieved successfully",
-        data: user,
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        status: "error",
-        message: error.message || "An unknown error occurred",
-      });
-    }
-  },
-
-  changePassword: async (req: Request, res: Response) => {
-    try {
-      await authService.changePassword(req.body, fromNodeHeaders(req.headers));
-
-      res.status(200).json({
-        status: "success",
-        message: "Password changed successfully",
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        status: "error",
-        message: error.message || "An unknown error occurred",
-      });
-    }
-  },
-
-  forgetPassword: async (req: Request, res: Response) => {
-    try {
-      const { email } = req.body;
-      const message = await authService.forgetPassword(email);
-
-      res.status(200).json({
-        status: "success",
-        message,
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        status: "error",
-        message: error.message || "An unknown error occurred",
-      });
-    }
-  },
-
-  resetPassword: async (req: Request, res: Response) => {
-    try {
-      await authService.resetPassword(req.body);
-
-      res.status(200).json({
-        status: "success",
-        message: "Password reset successfully",
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        status: "error",
-        message: error.message || "An unknown error occurred",
-      });
-    }
-  },
+  resetPassword: asyncHandler(async (req: Request, res: Response) => {
+    await authService.resetPassword(req.body);
+    res
+      .status(200)
+      .json({ status: "success", message: "Password reset successfully" });
+  }),
 };
