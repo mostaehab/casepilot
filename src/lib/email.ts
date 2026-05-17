@@ -51,11 +51,7 @@ const send = async (to: string, subject: string, html: string) => {
     );
     return;
   }
-  try {
-    await tx.sendMail({ from: FROM, to, subject, html });
-  } catch (err) {
-    console.error(`[email] failed to send to ${to}:`, err);
-  }
+  await tx.sendMail({ from: FROM, to, subject, html });
 };
 
 export const emailService = {
