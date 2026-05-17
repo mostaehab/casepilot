@@ -20,7 +20,7 @@ const ALLOWED_CONTENT_TYPES = [
   "text/csv",
 ];
 
-const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
+const MAX_BYTES = 50 * 1024 * 1024; // 50 MB
 
 export const caseFileController = {
   handleUpload: asyncHandler(async (req: Request, res: Response) => {
@@ -49,6 +49,12 @@ export const caseFileController = {
           allowedContentTypes: ALLOWED_CONTENT_TYPES,
           maximumSizeInBytes: MAX_BYTES,
           addRandomSuffix: true,
+          // Explicit 1-hour validity. handleUpload's default *should* be 1 h,
+          // but generateClientTokenFromReadWriteToken falls back to 30 s if
+          // validUntil isn't passed through — small enough that any clock
+          // skew between this function and Vercel Blob's edge marks the
+          // token expired on arrival. Setting it explicitly removes the risk.
+          validUntil: Date.now() + 60 * 60 * 1000,
           tokenPayload: JSON.stringify({
             caseId,
             uploaderId: session.user.id,
