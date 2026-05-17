@@ -1,25 +1,54 @@
-# Case File Uploads — Frontend Guide
+# Case File Uploads — Frontend Implementation Guide
 
-This document explains how to upload, list, and delete files for a case.
+This is a step-by-step guide for the frontend team to implement upload / list / delete of files attached to a case.
 
-> Files are stored in **Vercel Blob**. The browser POSTs a `multipart/form-data` request to the API, which streams the file to Vercel Blob and records metadata in the DB. The browser never talks to Vercel Blob directly.
-
----
-
-## 1. Authentication
-
-All requests assume the user is signed in. The browser must send the session cookie (`fetch` with `credentials: "include"`).
-
-If the user is not signed in, requests fail with `401`.
-
-If your frontend is on a different origin from the API, configure CORS + `credentials: "include"` accordingly. CasePilot's CORS origins are set via the `CORS_ORIGINS` env var on the API.
+> Files are stored in **Vercel Blob**. The browser POSTs a `multipart/form-data` request to the API; the API uploads to Blob and writes the DB row. The browser never talks to Vercel Blob directly.
 
 ---
 
-## 2. Upload a file
+## 1. Endpoints at a glance
+
+| Method | Path                              | What it does                       | Auth |
+|--------|-----------------------------------|------------------------------------|------|
+| POST   | `/api/cases/:caseId/files`        | Upload a single file               | yes  |
+| GET    | `/api/cases/:caseId/files`        | List all files attached to a case  | yes  |
+| DELETE | `/api/cases/:caseId/files/:fileId`| Delete a file (owner or uploader)  | yes  |
+
+All endpoints require the user's session cookie. `fetch` calls must include `credentials: "include"` if the frontend is on a different origin.
+
+---
+
+## 2. Constraints (enforced server-side)
+
+| Constraint | Value |
+|---|---|
+| Max size | **50 MB** |
+| Allowed types | PDF, DOC/DOCX, XLS/XLSX, JPEG, PNG, HEIC/HEIF, TXT, CSV |
+| Original filename | Preserved in `file_name`; storage path gets a random suffix |
+
+Exact MIME strings:
+```
+application/pdf
+application/msword
+application/vnd.openxmlformats-officedocument.wordprocessingml.document
+application/vnd.ms-excel
+application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+image/jpeg
+image/png
+image/heic
+image/heif
+text/plain
+text/csv
+```
+
+It's recommended to mirror these in the `<input accept="...">` attribute *and* validate client-side before sending, so users get instant feedback. The server will reject with `400 Unsupported file type: <mime>` if you skip that.
+
+---
+
+## 3. Minimal upload — `fetch`
 
 ```ts
-async function uploadCaseFile(caseId: string, file: File) {
+export async function uploadCaseFile(caseId: string, file: File) {
   const form = new FormData();
   form.append("file", file);
 
@@ -28,30 +57,63 @@ async function uploadCaseFile(caseId: string, file: File) {
     body: form,
     credentials: "include",
   });
-  if (!res.ok) throw new Error((await res.json()).message);
-  const { data } = await res.json();
-  return data;
+
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message ?? "Upload failed");
+  return json.data as CaseFile;
 }
 ```
 
-### Progress / cancellation
+`Content-Type` is **not** set manually — the browser sets it (with the multipart boundary) when you pass a `FormData`.
 
-`fetch` does not expose upload progress. If you need a progress bar, use `XMLHttpRequest` instead:
+`CaseFile` shape:
+```ts
+type CaseFile = {
+  id: string;
+  case_id: string;
+  uploaded_by: string;
+  file_name: string;       // original filename
+  file_url: string;        // public Vercel Blob URL
+  file_type: string;       // MIME type
+  file_size: number;       // bytes
+  uploaded_at: string;     // ISO timestamp
+};
+```
+
+---
+
+## 4. Upload with progress — `XMLHttpRequest`
+
+`fetch` does not expose request upload progress. Use `XMLHttpRequest` when you need a progress bar:
 
 ```ts
-function uploadWithProgress(caseId: string, file: File, onProgress: (pct: number) => void) {
-  return new Promise<any>((resolve, reject) => {
+export function uploadCaseFileWithProgress(
+  caseId: string,
+  file: File,
+  onProgress: (pct: number) => void,
+  signal?: AbortSignal,
+): Promise<CaseFile> {
+  return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `/api/cases/${caseId}/files`);
     xhr.withCredentials = true;
+
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
     };
+
     xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText).data);
-      else reject(new Error(JSON.parse(xhr.responseText).message ?? "Upload failed"));
+      let body: any;
+      try { body = JSON.parse(xhr.responseText); } catch { body = {}; }
+      if (xhr.status >= 200 && xhr.status < 300) resolve(body.data);
+      else reject(new Error(body.message ?? `Upload failed (${xhr.status})`));
     };
+
     xhr.onerror = () => reject(new Error("Network error"));
+    xhr.onabort = () => reject(new DOMException("Aborted", "AbortError"));
+
+    signal?.addEventListener("abort", () => xhr.abort());
+
     const form = new FormData();
     form.append("file", file);
     xhr.send(form);
@@ -59,34 +121,97 @@ function uploadWithProgress(caseId: string, file: File, onProgress: (pct: number
 }
 ```
 
-### Multiple files
-
-Call the upload helper once per file. They can run in parallel:
-
+Usage:
 ```ts
-await Promise.all(files.map((f) => uploadCaseFile(caseId, f)));
+const controller = new AbortController();
+const file = await uploadCaseFileWithProgress(
+  caseId,
+  file,
+  (pct) => setProgress(pct),
+  controller.signal,
+);
+// to cancel: controller.abort();
 ```
 
 ---
 
-## 3. Constraints
+## 5. React hook example
 
-Enforced server-side.
+```tsx
+import { useState, useCallback } from "react";
 
-| Constraint | Value |
-| --- | --- |
-| **Max size** | 50 MB |
-| **Allowed types** | `application/pdf`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document` (`.docx`), `application/vnd.ms-excel`, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` (`.xlsx`), `image/jpeg`, `image/png`, `image/heic`, `image/heif`, `text/plain`, `text/csv` |
-| **Filename** | A random suffix is appended automatically to prevent collisions in storage. The original name is preserved in `file_name`. |
+type UploadState =
+  | { status: "idle" }
+  | { status: "uploading"; progress: number }
+  | { status: "success"; file: CaseFile }
+  | { status: "error"; message: string };
 
-To change these, edit `src/modules/case-file/case-file.routes.ts` (size limit) and `src/modules/case-file/case-file.service.ts` (`ALLOWED_CONTENT_TYPES`).
+export function useCaseFileUpload(caseId: string) {
+  const [state, setState] = useState<UploadState>({ status: "idle" });
+  const [controller, setController] = useState<AbortController | null>(null);
+
+  const upload = useCallback(async (file: File) => {
+    const ctrl = new AbortController();
+    setController(ctrl);
+    setState({ status: "uploading", progress: 0 });
+    try {
+      const data = await uploadCaseFileWithProgress(
+        caseId,
+        file,
+        (progress) => setState({ status: "uploading", progress }),
+        ctrl.signal,
+      );
+      setState({ status: "success", file: data });
+      return data;
+    } catch (err: any) {
+      setState({ status: "error", message: err.message });
+      throw err;
+    } finally {
+      setController(null);
+    }
+  }, [caseId]);
+
+  const cancel = useCallback(() => controller?.abort(), [controller]);
+
+  return { state, upload, cancel };
+}
+```
+
+Component:
+```tsx
+function FileUploader({ caseId, onUploaded }: { caseId: string; onUploaded: (f: CaseFile) => void }) {
+  const { state, upload, cancel } = useCaseFileUpload(caseId);
+
+  return (
+    <div>
+      <input
+        type="file"
+        accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.heic,.heif,.txt,.csv"
+        disabled={state.status === "uploading"}
+        onChange={async (e) => {
+          const f = e.target.files?.[0];
+          if (!f) return;
+          try { onUploaded(await upload(f)); } catch {}
+        }}
+      />
+      {state.status === "uploading" && (
+        <>
+          <progress value={state.progress} max={100} />
+          <button onClick={cancel}>Cancel</button>
+        </>
+      )}
+      {state.status === "error" && <p style={{ color: "red" }}>{state.message}</p>}
+    </div>
+  );
+}
+```
 
 ---
 
-## 4. List files for a case
+## 6. Listing files
 
 ```ts
-async function listCaseFiles(caseId: string) {
+export async function listCaseFiles(caseId: string): Promise<CaseFile[]> {
   const res = await fetch(`/api/cases/${caseId}/files`, {
     credentials: "include",
   });
@@ -95,35 +220,19 @@ async function listCaseFiles(caseId: string) {
 }
 ```
 
-Returns:
-
-```json
-{
-  "status": "success",
-  "data": [
-    {
-      "id": "...",
-      "case_id": "...",
-      "uploaded_by": "...",
-      "file_name": "contract.pdf",
-      "file_url": "https://...public.blob.vercel-storage.com/...",
-      "file_type": "application/pdf",
-      "file_size": 123456,
-      "uploaded_at": "2026-05-17T...",
-      "uploader_name": "Mostafa Ehab"
-    }
-  ]
-}
+The list response includes one extra field beyond `CaseFile`:
+```ts
+type CaseFileListItem = CaseFile & { uploader_name: string };
 ```
 
-Render the file by linking directly to `file_url` — it's publicly accessible. (See §7 for caveats.)
+Files are returned ordered by `uploaded_at DESC`.
 
 ---
 
-## 5. Delete a file
+## 7. Deleting a file
 
 ```ts
-async function deleteCaseFile(caseId: string, fileId: string) {
+export async function deleteCaseFile(caseId: string, fileId: string) {
   const res = await fetch(`/api/cases/${caseId}/files/${fileId}`, {
     method: "DELETE",
     credentials: "include",
@@ -132,35 +241,104 @@ async function deleteCaseFile(caseId: string, fileId: string) {
 }
 ```
 
-Allowed for the **case owner** or the **file uploader**. Anyone else gets `403`. The file is removed from Vercel Blob *and* the DB.
+Only the **case owner** or **the user who uploaded the file** can delete it. Anyone else gets `403`.
 
 ---
 
-## 6. Error handling
+## 8. Rendering / downloading files
 
-| Status / message | Meaning |
-| --- | --- |
-| `400 No file uploaded` | The `file` field was missing from the form. |
-| `400 Unsupported file type: ...` | MIME type not in allowlist. |
-| `400 File too large` (multer) | File exceeds 50 MB. |
-| `401 Unauthorized` | Session cookie missing or expired. Prompt re-login. |
-| `403 You do not have access to this case` | User has no relationship with this case. |
-| `404 Case not found` | Bad `caseId`. |
-| `403 Only the case owner or uploader can delete this file` | Insufficient permission. |
-| `404 File not found` | Stale `fileId`. |
+`file_url` is a **public** Vercel Blob URL. To display or download:
 
----
+```tsx
+{files.map((f) => (
+  <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer">
+    {f.file_name}
+  </a>
+))}
+```
 
-## 7. Important caveats
+For images, just use `<img src={f.file_url} />`. For PDFs in-page, embed with `<iframe src={f.file_url} />` or use a viewer library.
 
-1. **`access: "public"` means the URL is world-readable.** Anyone with the URL can download the file forever. URLs contain a hard-to-guess random suffix, but for truly confidential legal documents you should plan to migrate to private blobs + a signed download endpoint. Don't expose `file_url` in publicly-cached HTML or search results.
-2. **The file flows through our serverless function.** This is simple and avoids CORS/preflight issues with direct-to-Blob uploads, at the cost of using a function instance for the duration of the upload and counting against Vercel's request body size limits. For 50 MB max this is fine; for much larger files reconsider.
-3. **Vercel Functions request body limit.** The 50 MB cap fits comfortably under Vercel's body size limit on Fluid Compute. If you raise the cap, verify your plan's limit first.
+> Anyone with the URL can read the file forever. The URL contains a random suffix so it's hard to guess, but don't surface `file_url` in publicly-cached HTML, search results, or anywhere the URL would leak to non-authenticated users.
 
 ---
 
-## 8. Reference
+## 9. Multiple files
 
-- Server route: `src/modules/case-file/case-file.routes.ts`
-- Server logic: `src/modules/case-file/case-file.controller.ts`, `case-file.service.ts`
-- Vercel Blob server SDK: <https://vercel.com/docs/storage/vercel-blob/using-blob-sdk>
+There is no batch endpoint. Upload one file at a time, in parallel:
+
+```ts
+const results = await Promise.allSettled(
+  files.map((f) => uploadCaseFile(caseId, f))
+);
+
+for (const r of results) {
+  if (r.status === "rejected") console.error(r.reason);
+}
+```
+
+`Promise.allSettled` is the right choice — you want partial successes, not all-or-nothing.
+
+---
+
+## 10. Errors
+
+| Status | Message                                                  | What to show the user                          |
+|--------|----------------------------------------------------------|------------------------------------------------|
+| 400    | `No file uploaded`                                       | "Pick a file first."                           |
+| 400    | `Unsupported file type: <mime>`                          | "That file type isn't allowed."                |
+| 400    | multer `File too large`                                  | "File exceeds the 50 MB limit."                |
+| 401    | `Unauthorized: No active session`                        | Redirect to login.                             |
+| 403    | `You do not have access to this case`                    | "You can't add files to this case."            |
+| 403    | `Only the case owner or uploader can delete this file`   | Hide / disable the delete button accordingly.  |
+| 404    | `Case not found` / `File not found`                      | Refresh the page; the resource is gone.        |
+
+All non-2xx responses use this shape:
+```json
+{ "status": "error", "message": "..." }
+```
+
+---
+
+## 11. Pre-flight client-side validation (recommended)
+
+Mirror the server constraints so users get fast feedback instead of waiting for the upload to fail:
+
+```ts
+const ALLOWED_MIME = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "image/jpeg", "image/png", "image/heic", "image/heif",
+  "text/plain", "text/csv",
+]);
+const MAX_BYTES = 50 * 1024 * 1024;
+
+export function validateForUpload(file: File): string | null {
+  if (file.size > MAX_BYTES) return "File exceeds the 50 MB limit.";
+  if (!ALLOWED_MIME.has(file.type)) return `File type "${file.type}" isn't allowed.`;
+  return null;
+}
+```
+
+---
+
+## 12. CORS / cookies notes
+
+If the frontend and API live on the **same** origin (e.g. both on `casepilot.app`), nothing extra is needed.
+
+If they live on **different** origins:
+
+1. Every `fetch` / `XMLHttpRequest` to the API must set `credentials: "include"` (`withCredentials = true` for XHR).
+2. The frontend origin must be in the API's `CORS_ORIGINS` env var.
+3. The session cookie must be `SameSite=None; Secure` — the API already issues it that way in production.
+
+---
+
+## 13. Reference
+
+- Endpoint reference: `docs/api.md` § "Case Files"
+- Server routes:    `src/modules/case-file/case-file.routes.ts`
+- Server logic:     `src/modules/case-file/case-file.controller.ts`, `case-file.service.ts`
