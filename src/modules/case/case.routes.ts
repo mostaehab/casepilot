@@ -42,6 +42,7 @@ router.use("/:caseId/files", caseFileRoutes);
 router.post("/", validate(createCaseModel), caseController.createCase);
 router.get("/me", caseController.getMyCases);
 router.get("/assigned", caseController.getAssignedCases);
+router.get("/upcoming", caseController.getUpcomingCases);
 router.get("/team/:teamId", caseController.getCasesByTeam);
 router.get("/:id", caseController.getCaseById);
 router.patch("/:id", validate(updateCaseModel), caseController.updateCase);

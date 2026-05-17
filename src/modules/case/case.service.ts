@@ -83,6 +83,10 @@ export const caseService = {
     };
   },
 
+  getUpcomingCases: async (userId: string, limit: number = 5) => {
+    return await caseRepository.findUpcomingCases(userId, limit);
+  },
+
   getCaseById: async (id: string, requesterId: string) => {
     const c = await caseRepository.findCaseById(id);
     if (!c) {

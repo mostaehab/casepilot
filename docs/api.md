@@ -393,6 +393,27 @@ Cases owned by the caller, ordered by `created_at DESC`.
 ### `GET /cases/assigned` *(auth)*
 Cases the caller is explicitly assigned to.
 
+### `GET /cases/upcoming` *(auth)*
+Cases the caller can access (owns, is assigned to, or active member of the team) whose `next_hearing_date` is in the future and whose status isn't `closed`/`archived`. Ordered by hearing date ascending.
+
+**Query**
+
+| Param   | Notes                                |
+|---------|--------------------------------------|
+| `limit` | default `5`, clamped to `[1, 50]`    |
+
+**200**
+```json
+{
+  "status": "success",
+  "data": [
+    { "id": "...", "title": "...", "next_hearing_date": "...", "owner_name": "...", "team_name": "..." }
+  ]
+}
+```
+
+**Errors**: `404` no upcoming cases.
+
 ### `GET /cases/team/:teamId` *(auth)*
 All cases for a team. Caller must be team owner or active member — otherwise `403`.
 

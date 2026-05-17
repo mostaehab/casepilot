@@ -43,6 +43,13 @@ export const caseController = {
     res.status(200).json({ status: "success", data });
   }),
 
+  getUpcomingCases: asyncHandler(async (req: Request, res: Response) => {
+    const parsed = parseInt(String(req.query.limit ?? ""), 10);
+    const limit = Math.min(50, Math.max(1, Number.isNaN(parsed) ? 5 : parsed));
+    const data = await caseService.getUpcomingCases(req.user.id, limit);
+    res.status(200).json({ status: "success", data });
+  }),
+
   updateCase: asyncHandler(async (req: Request, res: Response) => {
     const data = await caseService.updateCase(
       req.params.id as string,
