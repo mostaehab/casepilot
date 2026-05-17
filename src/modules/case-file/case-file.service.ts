@@ -1,4 +1,4 @@
-import { put, del } from "@vercel/blob";
+import { del } from "@vercel/blob";
 import { caseRepository } from "../case/case.repository.js";
 import { teamRepository } from "../team/team.repository.js";
 import { caseFileRepository } from "./case-file.repository.js";
@@ -29,35 +29,21 @@ const canAccessCase = async (caseId: string, userId: string) => {
 };
 
 export const caseFileService = {
-  uploadFile: async (
-    caseId: string,
-    file: Express.Multer.File,
-    uploaderId: string,
-  ) => {
-    const { allowed, case: c } = await canAccessCase(caseId, uploaderId);
-    if (!c) {
-      throw notFound("Case not found");
-    }
-    if (!allowed) {
-      throw forbidden("You do not have access to this case");
-    }
+  canAccessCase,
 
-    const blob = await put(
-      `cases/${caseId}/${Date.now()}-${file.originalname}`,
-      file.buffer,
-      {
-        access: "public",
-        contentType: file.mimetype,
-      },
-    );
-
+  recordUploadedFile: async (input: {
+    caseId: string;
+    uploaderId: string;
+    fileName: string;
+    fileUrl: string;
+    fileType?: string;
+  }) => {
     return await caseFileRepository.createFile({
-      caseId,
-      uploadedBy: uploaderId,
-      fileName: file.originalname,
-      fileUrl: blob.url,
-      fileType: file.mimetype,
-      fileSize: file.size,
+      caseId: input.caseId,
+      uploadedBy: input.uploaderId,
+      fileName: input.fileName,
+      fileUrl: input.fileUrl,
+      fileType: input.fileType,
     });
   },
 
