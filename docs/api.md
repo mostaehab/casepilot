@@ -481,32 +481,48 @@ Assign a team member to the case. Case must belong to a team.
 
 Files attached to a case, stored in Vercel Blob (URL is public). Access mirrors the case's access rules.
 
-### `POST /cases/:caseId/files` — presigned client upload *(auth)*
+### `POST /cases/:caseId/files` — upload a file *(auth)*
 
-Files are uploaded directly from the browser to Vercel Blob. This endpoint is **not** a multipart upload — it issues a short-lived upload token, then receives a webhook from Vercel Blob when the upload finishes (which inserts the DB row).
-
-The client uses `@vercel/blob/client`'s `upload()` helper, which round-trips with this endpoint automatically.
+`multipart/form-data` with a single `file` field. The API receives the file, uploads it to Vercel Blob, and inserts the DB row.
 
 **Constraints enforced server-side**
-- Max size: **10 MB**
+- Max size: **50 MB**
 - Allowed content types: `application/pdf`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `application/vnd.ms-excel`, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `image/jpeg`, `image/png`, `image/heic`, `image/heif`, `text/plain`, `text/csv`
-- A random suffix is appended to the filename to prevent collisions.
+- A random suffix is appended to the stored filename to prevent collisions; the original name is preserved in `file_name`.
 
 **Client example**
 ```ts
-import { upload } from "@vercel/blob/client";
+const form = new FormData();
+form.append("file", file);
 
-const blob = await upload(file.name, file, {
-  access: "public",
-  handleUploadUrl: `/api/cases/${caseId}/files`,
-  // The browser must already hold a session cookie for this API origin.
+const res = await fetch(`/api/cases/${caseId}/files`, {
+  method: "POST",
+  body: form,
+  credentials: "include",
 });
-// blob.url is the final public URL.
+const { data } = await res.json();
+// data.file_url is the final public URL.
 ```
 
-The server records the file in the DB via a `blob.upload-completed` webhook from Vercel Blob — by the time `upload()` resolves on the client, the row exists.
+**201**
+```json
+{
+  "status": "success",
+  "message": "File uploaded successfully",
+  "data": {
+    "id": "...",
+    "case_id": "...",
+    "uploaded_by": "...",
+    "file_name": "contract.pdf",
+    "file_url": "https://...public.blob.vercel-storage.com/...",
+    "file_type": "application/pdf",
+    "file_size": 123456,
+    "uploaded_at": "..."
+  }
+}
+```
 
-**Errors**: `401` no session, `403` no case access, `404` case not found, plus client-side errors from Vercel Blob for disallowed content type / oversized file.
+**Errors**: `400` no file / unsupported type / over size limit, `401` no session, `403` no case access, `404` case not found.
 
 ### `GET /cases/:caseId/files` *(auth)*
 List files for the case.
