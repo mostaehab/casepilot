@@ -43,11 +43,26 @@ export const teamService = {
     return await teamRepository.createTeam(input, ownerId);
   },
 
-  getTeamById: async (id: string) => {
+  getTeamById: async (
+    id: string,
+    requesterId: string,
+    requesterRole: string,
+  ) => {
     const team = await teamRepository.findTeamById(id);
     if (!team) {
       throw notFound("Team not found");
     }
+
+    if (requesterRole !== "admin" && team.owner_id !== requesterId) {
+      const member = await teamRepository.findMemberByTeamAndUser(
+        id,
+        requesterId,
+      );
+      if (!member || member.status !== "active") {
+        throw forbidden("You do not have access to this team");
+      }
+    }
+
     const members = await teamRepository.findMembersByTeamId(id);
     return { ...team, members };
   },

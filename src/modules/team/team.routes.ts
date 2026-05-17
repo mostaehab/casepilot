@@ -32,10 +32,10 @@ router.delete(
   adminProtected,
   teamController.adminRemoveMember,
 );
+router.get("/", adminProtected, teamController.getAllTeams);
 
 router.use(userProtected);
 
-router.get("/", teamController.getAllTeams);
 router.post("/", validate(createTeamModel), teamController.createTeam);
 router.get("/me", teamController.getMyTeam);
 router.get("/memberships", teamController.getMyMemberships);

@@ -18,7 +18,11 @@ export const teamController = {
   }),
 
   getTeamById: asyncHandler(async (req: Request, res: Response) => {
-    const team = await teamService.getTeamById(req.params.id as string);
+    const team = await teamService.getTeamById(
+      req.params.id as string,
+      req.user.id,
+      req.user.role,
+    );
     res.status(200).json({ status: "success", data: team });
   }),
 

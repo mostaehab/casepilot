@@ -117,6 +117,24 @@ export const caseRepository = {
     return rows;
   },
 
+  findAccessibleCases: async (userId: string) => {
+    const query = `
+      SELECT DISTINCT c.*, u.name AS owner_name, u.email AS owner_email,
+             t.name AS team_name
+      FROM "case" c
+      JOIN "user" u ON c.owner_id = u.id
+      LEFT JOIN "team" t ON c.team_id = t.id
+      LEFT JOIN "team_member" tm
+        ON tm.team_id = c.team_id AND tm.user_id = $1 AND tm.status = 'active'
+      LEFT JOIN "case_assignment" ca
+        ON ca.case_id = c.id AND ca.user_id = $1
+      WHERE c.owner_id = $1 OR tm.user_id = $1 OR ca.user_id = $1
+      ORDER BY c.created_at DESC
+    `;
+    const { rows } = await pool.query(query, [userId]);
+    return rows;
+  },
+
   findCasesByTeamId: async (teamId: string) => {
     const query = `SELECT * FROM "case" WHERE team_id = $1 ORDER BY created_at DESC`;
     const { rows } = await pool.query(query, [teamId]);

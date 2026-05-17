@@ -11,7 +11,11 @@ const requireId = (id: unknown): string => {
 export const userController = {
   getUserById: asyncHandler(async (req: Request, res: Response) => {
     const id = requireId(req.params.id);
-    const user = await userService.findUserById(id);
+    const user = await userService.findUserById(
+      id,
+      req.user.id,
+      req.user.role,
+    );
     res.status(200).json({ status: "success", data: user });
   }),
 
@@ -22,7 +26,12 @@ export const userController = {
 
   updateUserById: asyncHandler(async (req: Request, res: Response) => {
     const id = requireId(req.params.id);
-    const updatedUser = await userService.updateUserById(id, req.body);
+    const updatedUser = await userService.updateUserById(
+      id,
+      req.body,
+      req.user.id,
+      req.user.role,
+    );
     res.status(200).json({
       status: "success",
       message: "User updated successfully",
@@ -32,7 +41,7 @@ export const userController = {
 
   deleteUserById: asyncHandler(async (req: Request, res: Response) => {
     const id = requireId(req.params.id);
-    await userService.deleteUserById(id);
+    await userService.deleteUserById(id, req.user.id, req.user.role);
     res
       .status(200)
       .json({ status: "success", message: "User deactivated successfully" });

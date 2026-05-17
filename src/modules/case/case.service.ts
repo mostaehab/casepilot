@@ -100,8 +100,8 @@ export const caseService = {
     return { ...c, assignments };
   },
 
-  getMyCases: async (ownerId: string) => {
-    return await caseRepository.findCasesByOwnerId(ownerId);
+  getMyCases: async (userId: string) => {
+    return await caseRepository.findAccessibleCases(userId);
   },
 
   getCasesByTeam: async (teamId: string, requesterId: string) => {

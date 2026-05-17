@@ -1,7 +1,17 @@
 import { buildPaginationMeta, buildQuery } from "../../utils/query.js";
-import { conflict, notFound } from "../../lib/errors.js";
+import { conflict, forbidden, notFound } from "../../lib/errors.js";
 import { userRepository } from "./user.repository.js";
 import { updateUserInput } from "./user.validation.js";
+
+const ensureSelfOrAdmin = (
+  targetId: string,
+  requesterId: string,
+  requesterRole: string,
+) => {
+  if (requesterRole !== "admin" && targetId !== requesterId) {
+    throw forbidden("You can only access your own account");
+  }
+};
 
 const userQueryConfig = {
   filterable: {
@@ -21,7 +31,12 @@ const userQueryConfig = {
 };
 
 export const userService = {
-  findUserById: async (id: string) => {
+  findUserById: async (
+    id: string,
+    requesterId: string,
+    requesterRole: string,
+  ) => {
+    ensureSelfOrAdmin(id, requesterId, requesterRole);
     const user = await userRepository.findUserById(id);
     if (!user) {
       throw notFound("User not found");
@@ -38,7 +53,13 @@ export const userService = {
     };
   },
 
-  updateUserById: async (id: string, input: updateUserInput) => {
+  updateUserById: async (
+    id: string,
+    input: updateUserInput,
+    requesterId: string,
+    requesterRole: string,
+  ) => {
+    ensureSelfOrAdmin(id, requesterId, requesterRole);
     const user = await userRepository.findUserById(id);
     if (!user) {
       throw notFound("User not found");
@@ -46,7 +67,12 @@ export const userService = {
     return await userRepository.updateUserById(id, input);
   },
 
-  deleteUserById: async (id: string) => {
+  deleteUserById: async (
+    id: string,
+    requesterId: string,
+    requesterRole: string,
+  ) => {
+    ensureSelfOrAdmin(id, requesterId, requesterRole);
     const user = await userRepository.findUserById(id);
     if (!user) {
       throw notFound("User not found");
