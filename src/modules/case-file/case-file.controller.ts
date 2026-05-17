@@ -28,6 +28,30 @@ export const caseFileController = {
     res.status(200).json({ status: "success", data });
   }),
 
+  downloadFile: asyncHandler(async (req: Request, res: Response) => {
+    const { file, stream, contentType, size } =
+      await caseFileService.downloadFile(
+        req.params.fileId as string,
+        req.user.id,
+      );
+
+    res.setHeader(
+      "Content-Type",
+      contentType ?? file.file_type ?? "application/octet-stream",
+    );
+    if (size) {
+      res.setHeader("Content-Length", String(size));
+    }
+    const disposition = req.query.download === "1" ? "attachment" : "inline";
+    res.setHeader(
+      "Content-Disposition",
+      `${disposition}; filename="${encodeURIComponent(file.file_name)}"`,
+    );
+
+    const { Readable } = await import("node:stream");
+    Readable.fromWeb(stream as any).pipe(res);
+  }),
+
   deleteFile: asyncHandler(async (req: Request, res: Response) => {
     await caseFileService.deleteFile(
       req.params.fileId as string,

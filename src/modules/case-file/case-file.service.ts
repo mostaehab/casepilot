@@ -1,4 +1,4 @@
-import { put, del } from "@vercel/blob";
+import { put, del, get } from "@vercel/blob";
 import { caseRepository } from "../case/case.repository.js";
 import { teamRepository } from "../team/team.repository.js";
 import { caseFileRepository } from "./case-file.repository.js";
@@ -64,7 +64,7 @@ export const caseFileService = {
       `cases/${caseId}/${Date.now()}-${file.originalname}`,
       file.buffer,
       {
-        access: "public",
+        access: "private",
         contentType: file.mimetype,
         addRandomSuffix: true,
       },
@@ -89,6 +89,32 @@ export const caseFileService = {
       throw forbidden("You do not have access to this case");
     }
     return await caseFileRepository.findFilesByCaseId(caseId);
+  },
+
+  downloadFile: async (fileId: string, requesterId: string) => {
+    const file = await caseFileRepository.findFileById(fileId);
+    if (!file) {
+      throw notFound("File not found");
+    }
+
+    const { allowed, case: c } = await canAccessCase(file.case_id, requesterId);
+    if (!c) {
+      throw notFound("Case not found");
+    }
+    if (!allowed) {
+      throw forbidden("You do not have access to this case");
+    }
+
+    const result = await get(file.file_url, { access: "private" });
+    if (!result || result.statusCode !== 200) {
+      throw notFound("File not found in storage");
+    }
+    return {
+      file,
+      stream: result.stream,
+      contentType: result.blob.contentType,
+      size: result.blob.size,
+    };
   },
 
   deleteFile: async (fileId: string, requesterId: string) => {

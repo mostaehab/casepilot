@@ -23,6 +23,7 @@ router.use(userProtected);
 
 router.post("/", upload.single("file"), caseFileController.uploadFile);
 router.get("/", caseFileController.listFiles);
+router.get("/:fileId/download", caseFileController.downloadFile);
 router.delete("/:fileId", caseFileController.deleteFile);
 
 export default router;

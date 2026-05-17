@@ -481,9 +481,11 @@ Assign a team member to the case. Case must belong to a team.
 
 Files attached to a case, stored in Vercel Blob (URL is public). Access mirrors the case's access rules.
 
+Blobs are stored with `access: "private"` — `file_url` is **not** directly fetchable. To view/download a file, hit the download endpoint below; it streams the file content through the API.
+
 ### `POST /cases/:caseId/files` — upload a file *(auth)*
 
-`multipart/form-data` with a single `file` field. The API receives the file, uploads it to Vercel Blob, and inserts the DB row.
+`multipart/form-data` with a single `file` field. The API receives the file, uploads it to Vercel Blob (private), and inserts the DB row.
 
 **Constraints enforced server-side**
 - Max size: **50 MB**
@@ -536,6 +538,16 @@ List files for the case.
   ]
 }
 ```
+
+### `GET /cases/:caseId/files/:fileId/download` *(auth)*
+Streams the file content back through the API. Required because the blob store is private — `file_url` from the list endpoint is **not** directly fetchable.
+
+- Default: inline (`Content-Disposition: inline`) — embed in `<img>`, `<iframe>`, etc.
+- Append `?download=1` for a forced download (`Content-Disposition: attachment`).
+
+`Content-Type` is set from the stored MIME type. `Content-Length` is set when known.
+
+**Errors**: `401` no session, `403` no case access, `404` file not found.
 
 ### `DELETE /cases/:caseId/files/:fileId` *(auth)*
 Allowed for case owner or the uploader. Deletes from Blob then DB.

@@ -1,18 +1,19 @@
 # Case File Uploads — Frontend Implementation Guide
 
-This is a step-by-step guide for the frontend team to implement upload / list / delete of files attached to a case.
+This is a step-by-step guide for the frontend team to implement upload / list / download / delete of files attached to a case.
 
-> Files are stored in **Vercel Blob**. The browser POSTs a `multipart/form-data` request to the API; the API uploads to Blob and writes the DB row. The browser never talks to Vercel Blob directly.
+> Files are stored in **Vercel Blob** with **private access**. The browser POSTs a `multipart/form-data` request to the API; the API uploads to Blob and writes the DB row. To view a file, the browser hits a download endpoint that streams the content back through the API — `file_url` returned by the list endpoint is **not** directly fetchable.
 
 ---
 
 ## 1. Endpoints at a glance
 
-| Method | Path                              | What it does                       | Auth |
-|--------|-----------------------------------|------------------------------------|------|
-| POST   | `/api/cases/:caseId/files`        | Upload a single file               | yes  |
-| GET    | `/api/cases/:caseId/files`        | List all files attached to a case  | yes  |
-| DELETE | `/api/cases/:caseId/files/:fileId`| Delete a file (owner or uploader)  | yes  |
+| Method | Path                                          | What it does                            | Auth |
+|--------|-----------------------------------------------|-----------------------------------------|------|
+| POST   | `/api/cases/:caseId/files`                    | Upload a single file                    | yes  |
+| GET    | `/api/cases/:caseId/files`                    | List all files attached to a case       | yes  |
+| GET    | `/api/cases/:caseId/files/:fileId/download`   | Stream a file's content (inline / attach)| yes |
+| DELETE | `/api/cases/:caseId/files/:fileId`            | Delete a file (owner or uploader)       | yes  |
 
 All endpoints require the user's session cookie. `fetch` calls must include `credentials: "include"` if the frontend is on a different origin.
 
@@ -247,19 +248,46 @@ Only the **case owner** or **the user who uploaded the file** can delete it. Any
 
 ## 8. Rendering / downloading files
 
-`file_url` is a **public** Vercel Blob URL. To display or download:
+The blob store is **private** — `file_url` returned by the list endpoint is **not** directly fetchable from the browser. Use the download endpoint instead:
+
+```
+GET /api/cases/:caseId/files/:fileId/download           // inline (default)
+GET /api/cases/:caseId/files/:fileId/download?download=1 // forced download
+```
+
+This endpoint authenticates the user (same session-cookie rules as everything else), then streams the file content back with the correct `Content-Type`.
+
+```ts
+function downloadUrl(caseId: string, fileId: string, forceDownload = false) {
+  const q = forceDownload ? "?download=1" : "";
+  return `/api/cases/${caseId}/files/${fileId}/download${q}`;
+}
+```
 
 ```tsx
 {files.map((f) => (
-  <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer">
+  <a
+    key={f.id}
+    href={downloadUrl(caseId, f.id, true)}
+    target="_blank"
+    rel="noopener noreferrer"
+  >
     {f.file_name}
   </a>
 ))}
 ```
 
-For images, just use `<img src={f.file_url} />`. For PDFs in-page, embed with `<iframe src={f.file_url} />` or use a viewer library.
+Embedding in the page:
 
-> Anyone with the URL can read the file forever. The URL contains a random suffix so it's hard to guess, but don't surface `file_url` in publicly-cached HTML, search results, or anywhere the URL would leak to non-authenticated users.
+```tsx
+// Images
+<img src={downloadUrl(caseId, f.id)} alt={f.file_name} />
+
+// PDFs (inline viewer)
+<iframe src={downloadUrl(caseId, f.id)} title={f.file_name} />
+```
+
+> The endpoint requires the session cookie. If your frontend is on a different origin from the API, `<img>` / `<iframe>` will still send cookies as long as the session cookie is `SameSite=None; Secure` (it is in production) — but `<img crossOrigin>` must **not** be set, otherwise the cookie is dropped. If you need to fetch the bytes via JS (e.g. for a blob URL), use `fetch(downloadUrl, { credentials: "include" })`.
 
 ---
 
@@ -291,7 +319,7 @@ for (const r of results) {
 | 401    | `Unauthorized: No active session`                        | Redirect to login.                             |
 | 403    | `You do not have access to this case`                    | "You can't add files to this case."            |
 | 403    | `Only the case owner or uploader can delete this file`   | Hide / disable the delete button accordingly.  |
-| 404    | `Case not found` / `File not found`                      | Refresh the page; the resource is gone.        |
+| 404    | `Case not found` / `File not found` / `File not found in storage` | Refresh the page; the resource is gone.        |
 
 All non-2xx responses use this shape:
 ```json
