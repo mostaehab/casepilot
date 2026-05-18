@@ -14,7 +14,7 @@ import {
 import { SYSTEM_PROMPT, buildUserPrompt } from "./ai.prompts.js";
 import { badRequest, forbidden, notFound } from "../../lib/errors.js";
 
-const MODEL_ID = "gemini-2.5-pro";
+const MODEL_ID = "gemini-2.5-flash";
 const model = google(MODEL_ID);
 
 const canAccessCase = async (caseId: string, userId: string) => {
