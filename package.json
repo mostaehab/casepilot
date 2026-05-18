@@ -22,7 +22,9 @@
     "migrate:down": "node-pg-migrate down"
   },
   "dependencies": {
+    "@ai-sdk/gateway": "^3.0.115",
     "@vercel/blob": "^2.3.3",
+    "ai": "^6.0.184",
     "bcrypt": "^6.0.0",
     "better-auth": "^1.5.5",
     "cors": "^2.8.6",
@@ -32,12 +34,14 @@
     "helmet": "^8.1.0",
     "jest": "^30.3.0",
     "jsonwebtoken": "^9.0.3",
+    "mammoth": "^1.12.0",
     "morgan": "^1.10.1",
     "multer": "^2.1.1",
     "node-cron": "^4.2.1",
     "nodemailer": "^8.0.7",
     "uuid": "^13.0.0",
     "winston": "^3.19.0",
+    "xlsx": "^0.18.5",
     "zod": "^4.3.6"
   },
   "devDependencies": {

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { caseController } from "./case.controller.js";
 import caseFileRoutes from "../case-file/case-file.routes.js";
+import aiRoutes from "../ai/ai.routes.js";
 import {
   adminProtected,
   userProtected,
@@ -38,6 +39,7 @@ router.post(
 router.use(userProtected);
 
 router.use("/:caseId/files", caseFileRoutes);
+router.use("/:caseId/ai", aiRoutes);
 
 router.post("/", validate(createCaseModel), caseController.createCase);
 router.get("/me", caseController.getMyCases);

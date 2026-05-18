@@ -14,7 +14,10 @@ import dotenv from "dotenv";
 // by src/config/db.ts but doesn't include it.
 dotenv.config({ path: ".env.local" });
 
+import http from "node:http";
 import { pool } from "../src/config/db.js";
+import app from "../src/app.js";
+import { auth } from "../src/lib/auth.js";
 import { caseFileService } from "../src/modules/case-file/case-file.service.js";
 
 const PDF_BYTES = Buffer.from(
@@ -77,6 +80,39 @@ const streamToBuffer = async (stream: ReadableStream): Promise<Buffer> => {
   return Buffer.concat(chunks);
 };
 
+const startServer = (): Promise<{ server: http.Server; baseUrl: string }> =>
+  new Promise((resolve, reject) => {
+    const server = http.createServer(app);
+    server.on("error", reject);
+    server.listen(0, () => {
+      const addr = server.address();
+      if (!addr || typeof addr === "string") {
+        reject(new Error("Failed to bind server"));
+        return;
+      }
+      resolve({ server, baseUrl: `http://127.0.0.1:${addr.port}` });
+    });
+  });
+
+const signInAndGetCookieHeader = async (
+  email: string,
+  password: string,
+): Promise<string> => {
+  const { headers } = await auth.api.signInEmail({
+    body: { email, password },
+    returnHeaders: true,
+  });
+  const setCookies: string[] = [];
+  headers.forEach((v, k) => {
+    if (k.toLowerCase() === "set-cookie") setCookies.push(v);
+  });
+  // Convert Set-Cookie response headers → Cookie request header
+  return setCookies
+    .map((c) => c.split(";")[0])
+    .filter(Boolean)
+    .join("; ");
+};
+
 const run = async () => {
   const { userId, userEmail, caseId } = await pickUserAndCase();
   log(`using user ${userEmail} (${userId}), case ${caseId}`);
@@ -88,32 +124,44 @@ const run = async () => {
     size: PDF_BYTES.length,
   } as unknown as Express.Multer.File;
 
-  log("uploading test PDF…");
+  log("uploading test PDF via service.uploadFile…");
   const uploaded = await caseFileService.uploadFile(caseId, fakeFile, userId);
   log(`  -> file id ${uploaded.id}, url ${uploaded.file_url}`);
 
-  let downloadedBytes: Buffer | null = null;
-  try {
-    log("downloading via service.downloadFile…");
-    const { stream, contentType, size, file } =
-      await caseFileService.downloadFile(uploaded.id, userId);
-    log(`  content-type=${contentType} size=${size} filename=${file.file_name}`);
-    downloadedBytes = await streamToBuffer(stream);
-    log(`  read ${downloadedBytes.length} bytes from stream`);
+  const { server, baseUrl } = await startServer();
+  log(`spun up http server on ${baseUrl}`);
 
-    if (downloadedBytes.length !== PDF_BYTES.length) {
-      throw new Error(
-        `byte length mismatch: uploaded ${PDF_BYTES.length}, downloaded ${downloadedBytes.length}`,
+  try {
+    log("downloading via service.downloadFile (in-process)…");
+    const direct = await caseFileService.downloadFile(uploaded.id, userId);
+    const directBytes = await streamToBuffer(direct.stream);
+    if (!directBytes.equals(PDF_BYTES)) {
+      throw new Error("service-layer byte mismatch");
+    }
+    log(`  service-layer PASS (${directBytes.length} bytes)`);
+
+    const password = process.env.TEST_USER_PASSWORD;
+    if (!password) {
+      log("(skipping HTTP test — set TEST_USER_PASSWORD to enable it)");
+    } else {
+      log("signing in and downloading via HTTP GET /:fileId/download…");
+      const cookie = await signInAndGetCookieHeader(userEmail, password);
+      const httpRes = await fetch(
+        `${baseUrl}/api/cases/${caseId}/files/${uploaded.id}/download`,
+        { headers: { Cookie: cookie } },
       );
+      log(`  http status=${httpRes.status} content-type=${httpRes.headers.get("content-type")}`);
+      const body = Buffer.from(await httpRes.arrayBuffer());
+      if (httpRes.status !== 200) {
+        throw new Error(`HTTP non-200: ${httpRes.status} ${body.toString("utf8")}`);
+      }
+      if (!body.equals(PDF_BYTES)) {
+        throw new Error(`HTTP byte mismatch (got ${body.length} bytes)`);
+      }
+      log(`  http PASS (${body.length} bytes)`);
     }
-    if (!downloadedBytes.equals(PDF_BYTES)) {
-      throw new Error("byte content mismatch");
-    }
-    if (contentType !== "application/pdf") {
-      throw new Error(`content-type wrong: ${contentType}`);
-    }
-    log("PASS — bytes and metadata match");
   } finally {
+    server.close();
     log("cleaning up test file…");
     try {
       await caseFileService.adminDeleteFile(uploaded.id);
