@@ -153,58 +153,44 @@ export const caseRepository = {
   },
 
   updateCase: async (id: string, input: updateCaseInput) => {
-    const {
-      title,
-      caseNumber,
-      description,
-      type,
-      priority,
-      status,
-      courtName,
-      filingDate,
-      nextHearingDate,
-      clientName,
-      clientPhone,
-      clientNationalNumber,
-      teamId,
-    } = input;
+    const sets: string[] = [];
+    const values: unknown[] = [];
+    const push = (column: string, value: unknown) => {
+      values.push(value);
+      sets.push(`${column} = $${values.length}`);
+    };
 
-    const teamIdProvided = teamId !== undefined;
+    if (input.title !== undefined) push("title", input.title);
+    if (input.caseNumber !== undefined) push("case_number", input.caseNumber);
+    if (input.description !== undefined) push("description", input.description);
+    if (input.type !== undefined) push("type", input.type);
+    if (input.priority !== undefined) push("priority", input.priority);
+    if (input.status !== undefined) push("status", input.status);
+    if (input.courtName !== undefined) push("court_name", input.courtName);
+    if (input.filingDate !== undefined) push("filing_date", input.filingDate);
+    if (input.nextHearingDate !== undefined)
+      push("next_hearing_date", input.nextHearingDate);
+    if (input.clientName !== undefined) push("client_name", input.clientName);
+    if (input.clientPhone !== undefined) push("client_phone", input.clientPhone);
+    if (input.clientNationalNumber !== undefined)
+      push("client_national_number", input.clientNationalNumber);
+    if (input.teamId !== undefined) push("team_id", input.teamId);
+
+    if (sets.length === 0) {
+      const { rows } = await pool.query(
+        `SELECT * FROM "case" WHERE id = $1`,
+        [id],
+      );
+      return rows[0];
+    }
+
+    sets.push(`updated_at = NOW()`);
+    values.push(id);
     const query = `
-      UPDATE "case" SET
-        title = COALESCE($1, title),
-        case_number = COALESCE($2, case_number),
-        description = COALESCE($3, description),
-        type = COALESCE($4, type),
-        priority = COALESCE($5, priority),
-        status = COALESCE($6, status),
-        court_name = COALESCE($7, court_name),
-        filing_date = COALESCE($8, filing_date),
-        next_hearing_date = COALESCE($9, next_hearing_date),
-        client_name = COALESCE($10, client_name),
-        client_phone = COALESCE($11, client_phone),
-        client_national_number = COALESCE($12, client_national_number),
-        team_id = ${teamIdProvided ? "$13" : "team_id"},
-        updated_at = NOW()
-      WHERE id = $14
+      UPDATE "case" SET ${sets.join(", ")}
+      WHERE id = $${values.length}
       RETURNING *
     `;
-    const values = [
-      title ?? null,
-      caseNumber ?? null,
-      description ?? null,
-      type ?? null,
-      priority ?? null,
-      status ?? null,
-      courtName ?? null,
-      filingDate ?? null,
-      nextHearingDate ?? null,
-      clientName ?? null,
-      clientPhone ?? null,
-      clientNationalNumber ?? null,
-      teamIdProvided ? (teamId ?? null) : null,
-      id,
-    ];
     const { rows } = await pool.query(query, values);
     return rows[0];
   },
