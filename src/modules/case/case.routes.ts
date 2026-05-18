@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { caseController } from "./case.controller.js";
 import caseFileRoutes from "../case-file/case-file.routes.js";
+import caseEventRoutes from "../case-event/case-event.routes.js";
+import { caseEventController } from "../case-event/case-event.controller.js";
 import aiRoutes from "../ai/ai.routes.js";
 import {
   adminProtected,
@@ -39,12 +41,14 @@ router.post(
 router.use(userProtected);
 
 router.use("/:caseId/files", caseFileRoutes);
+router.use("/:caseId/events", caseEventRoutes);
 router.use("/:caseId/ai", aiRoutes);
 
 router.post("/", validate(createCaseModel), caseController.createCase);
 router.get("/me", caseController.getMyCases);
 router.get("/assigned", caseController.getAssignedCases);
 router.get("/upcoming", caseController.getUpcomingCases);
+router.get("/events/upcoming", caseEventController.getUpcomingEvents);
 router.get("/team/:teamId", caseController.getCasesByTeam);
 router.get("/:id", caseController.getCaseById);
 router.patch("/:id", validate(updateCaseModel), caseController.updateCase);
