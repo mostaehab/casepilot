@@ -2,7 +2,7 @@
 
 A step-by-step guide for the frontend team to integrate the AI module: trigger an analysis of a case's documents, then read back the structured summary + hints.
 
-> Analyses are produced by **Claude Sonnet 4.6** via the **Vercel AI Gateway**. The model reads the documents already attached to the case (Vercel Blob storage, private) and returns a summary plus an array of actionable hints. Each run is persisted in the `case_analysis` table and can be fetched later.
+> Analyses are produced by **Gemini 2.5 Pro** via the Google Generative AI API (`@ai-sdk/google`). The model reads the documents already attached to the case (Vercel Blob storage, private) and returns a summary plus an array of actionable hints. Each run is persisted in the `case_analysis` table and can be fetched later. The server needs `GOOGLE_GENERATIVE_AI_API_KEY` set as an environment variable.
 
 ---
 
@@ -48,7 +48,7 @@ If `fileIds` is omitted or empty, every file currently on the case is sent to th
     "id": "f0b7…",
     "case_id": "…",
     "requested_by": "…",
-    "model": "anthropic/claude-sonnet-4.6",
+    "model": "gemini-2.5-pro",
     "status": "completed",
     "summary": "The plaintiff seeks…",
     "hints": [
