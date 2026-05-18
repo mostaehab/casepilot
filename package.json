@@ -22,7 +22,9 @@
     "migrate:down": "node-pg-migrate down"
   },
   "dependencies": {
+    "@ai-sdk/gateway": "^3.0.115",
     "@vercel/blob": "^2.3.3",
+    "ai": "^6.0.184",
     "bcrypt": "^6.0.0",
     "better-auth": "^1.5.5",
     "cors": "^2.8.6",
