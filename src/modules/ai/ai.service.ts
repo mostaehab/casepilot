@@ -1,4 +1,5 @@
 import { generateObject } from "ai";
+import { google } from "@ai-sdk/google";
 import { get } from "@vercel/blob";
 import mammoth from "mammoth";
 import * as XLSX from "xlsx";
@@ -13,7 +14,8 @@ import {
 import { SYSTEM_PROMPT, buildUserPrompt } from "./ai.prompts.js";
 import { badRequest, forbidden, notFound } from "../../lib/errors.js";
 
-const MODEL = "anthropic/claude-sonnet-4.6";
+const MODEL_ID = "gemini-2.5-pro";
+const model = google(MODEL_ID);
 
 const canAccessCase = async (caseId: string, userId: string) => {
   const c = await caseRepository.findCaseById(caseId);
@@ -160,7 +162,7 @@ export const aiService = {
     const analysis = await aiRepository.createAnalysis({
       caseId,
       requestedBy: requesterId,
-      model: MODEL,
+      model: MODEL_ID,
       fileIds: files.map((f) => f.id),
     });
 
@@ -168,7 +170,7 @@ export const aiService = {
       const parts = await Promise.all(files.map(fetchFilePart));
 
       const { object } = await generateObject({
-        model: MODEL,
+        model,
         schema: caseAnalysisSchema,
         system: SYSTEM_PROMPT,
         messages: [
