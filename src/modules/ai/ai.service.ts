@@ -1,5 +1,7 @@
 import { generateObject } from "ai";
 import { get } from "@vercel/blob";
+import mammoth from "mammoth";
+import * as XLSX from "xlsx";
 import { caseRepository } from "../case/case.repository.js";
 import { teamRepository } from "../team/team.repository.js";
 import { caseFileRepository } from "../case-file/case-file.repository.js";
@@ -34,10 +36,45 @@ const canAccessCase = async (caseId: string, userId: string) => {
   return { allowed: false, case: c };
 };
 
+const DOCX_MIME =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const XLSX_MIME =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const XLS_MIME = "application/vnd.ms-excel";
+
 const isPdf = (mime?: string | null) => mime === "application/pdf";
 const isImage = (mime?: string | null) => !!mime && mime.startsWith("image/");
 const isText = (mime?: string | null) =>
   mime === "text/plain" || mime === "text/csv";
+const isDocx = (mime?: string | null) => mime === DOCX_MIME;
+const isExcel = (mime?: string | null) =>
+  mime === XLSX_MIME || mime === XLS_MIME;
+
+const MAX_EXTRACTED_CHARS = 200_000;
+
+const truncate = (s: string) =>
+  s.length > MAX_EXTRACTED_CHARS
+    ? s.slice(0, MAX_EXTRACTED_CHARS) +
+      `\n\n[truncated — original length ${s.length} chars]`
+    : s;
+
+const extractDocx = async (buffer: Buffer) => {
+  const { value } = await mammoth.extractRawText({ buffer });
+  return value.trim();
+};
+
+const extractExcel = (buffer: Buffer) => {
+  const wb = XLSX.read(buffer, { type: "buffer" });
+  const parts: string[] = [];
+  for (const sheetName of wb.SheetNames) {
+    const sheet = wb.Sheets[sheetName];
+    if (!sheet) continue;
+    const csv = XLSX.utils.sheet_to_csv(sheet);
+    if (csv.trim().length === 0) continue;
+    parts.push(`# Sheet: ${sheetName}\n${csv}`);
+  }
+  return parts.join("\n\n").trim();
+};
 
 const fetchFilePart = async (file: {
   file_url: string;
@@ -48,7 +85,9 @@ const fetchFilePart = async (file: {
   if (!result || result.statusCode !== 200) {
     throw notFound(`File ${file.file_name} not found in storage`);
   }
-  const buffer = Buffer.from(await new Response(result.stream as any).arrayBuffer());
+  const buffer = Buffer.from(
+    await new Response(result.stream as any).arrayBuffer(),
+  );
 
   if (isPdf(file.file_type) || isImage(file.file_type)) {
     return {
@@ -61,10 +100,38 @@ const fetchFilePart = async (file: {
   if (isText(file.file_type)) {
     return {
       type: "text" as const,
-      text: `--- ${file.file_name} ---\n${buffer.toString("utf8")}`,
+      text: `--- ${file.file_name} ---\n${truncate(buffer.toString("utf8"))}`,
     };
   }
-  // Unsupported types (docx, xlsx, etc) — extraction TODO.
+  if (isDocx(file.file_type)) {
+    try {
+      const text = await extractDocx(buffer);
+      return {
+        type: "text" as const,
+        text: `--- ${file.file_name} (docx) ---\n${truncate(text)}`,
+      };
+    } catch (err: any) {
+      return {
+        type: "text" as const,
+        text: `--- ${file.file_name} ---\n[Failed to extract docx text: ${err?.message ?? "unknown error"}]`,
+      };
+    }
+  }
+  if (isExcel(file.file_type)) {
+    try {
+      const text = extractExcel(buffer);
+      return {
+        type: "text" as const,
+        text: `--- ${file.file_name} (spreadsheet) ---\n${truncate(text)}`,
+      };
+    } catch (err: any) {
+      return {
+        type: "text" as const,
+        text: `--- ${file.file_name} ---\n[Failed to extract spreadsheet text: ${err?.message ?? "unknown error"}]`,
+      };
+    }
+  }
+  // Legacy .doc and anything else — no pure-JS extractor available.
   return {
     type: "text" as const,
     text: `--- ${file.file_name} ---\n[Unsupported file type for analysis: ${file.file_type ?? "unknown"}]`,
