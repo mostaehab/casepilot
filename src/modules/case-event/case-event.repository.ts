@@ -71,28 +71,35 @@ export const caseEventRepository = {
   },
 
   updateEvent: async (id: string, input: updateCaseEventInput) => {
-    const descriptionProvided = input.description !== undefined;
+    const sets: string[] = [];
+    const values: unknown[] = [];
+    const push = (column: string, value: unknown) => {
+      values.push(value);
+      sets.push(`${column} = $${values.length}`);
+    };
+
+    if (input.title !== undefined) push("title", input.title);
+    if (input.description !== undefined) push("description", input.description);
+    if (input.eventType !== undefined) push("event_type", input.eventType);
+    if (input.eventDate !== undefined) push("event_date", input.eventDate);
+    if (input.allDay !== undefined) push("all_day", input.allDay);
+    if (input.completed !== undefined) push("completed", input.completed);
+
+    if (sets.length === 0) {
+      const { rows } = await pool.query(
+        `SELECT * FROM "case_event" WHERE id = $1`,
+        [id],
+      );
+      return rows[0];
+    }
+
+    sets.push(`updated_at = NOW()`);
+    values.push(id);
     const query = `
-      UPDATE "case_event" SET
-        title = COALESCE($1, title),
-        description = ${descriptionProvided ? "$2" : "description"},
-        event_type = COALESCE($3, event_type),
-        event_date = COALESCE($4, event_date),
-        all_day = COALESCE($5, all_day),
-        completed = COALESCE($6, completed),
-        updated_at = NOW()
-      WHERE id = $7
+      UPDATE "case_event" SET ${sets.join(", ")}
+      WHERE id = $${values.length}
       RETURNING *
     `;
-    const values = [
-      input.title ?? null,
-      descriptionProvided ? (input.description ?? null) : null,
-      input.eventType ?? null,
-      input.eventDate ?? null,
-      input.allDay ?? null,
-      input.completed ?? null,
-      id,
-    ];
     const { rows } = await pool.query(query, values);
     return rows[0];
   },
