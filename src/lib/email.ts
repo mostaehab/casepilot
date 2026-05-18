@@ -46,12 +46,14 @@ const button = (href: string, label: string) => `
 const send = async (to: string, subject: string, html: string) => {
   const tx = getTransporter();
   if (!tx) {
-    console.warn(
-      `[email] SMTP not configured (SMTP_HOST/USER/PASS), skipping email to ${to}`,
+    throw new Error(
+      "SMTP not configured — set SMTP_HOST, SMTP_USER, SMTP_PASS (and optionally SMTP_PORT, SMTP_FROM) in the deployment environment",
     );
-    return;
   }
-  await tx.sendMail({ from: FROM, to, subject, html });
+  const info = await tx.sendMail({ from: FROM, to, subject, html });
+  console.log(
+    `[email] sent "${subject}" from=${FROM} to=${to} messageId=${info.messageId}`,
+  );
 };
 
 export const emailService = {
